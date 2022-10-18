@@ -40,22 +40,22 @@ namespace Utopia.World
 			JobHandle anglesHandle = anglesJob.Schedule(vertices, 4);
 			anglesHandle.Complete();
 			random = anglesJob.random;
-
+			
 			NativeArray<float> angles = anglesJob.angles;
 			JobHandle anglesSort = angles.SortJob().Schedule();
-
 			
-
+			
+			
 			anglesSort.Complete();
 		}
-
+		
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		private struct AnglesJob : IJobParallelFor
 		{
 			public Random random;
-
+			
 			[WriteOnly] public NativeArray<float> angles;
-
+			
 			public void Execute(int index)
 			{
 				angles[index] = random.NextFloat(-180.0f + EPSILON, 180.0f);
