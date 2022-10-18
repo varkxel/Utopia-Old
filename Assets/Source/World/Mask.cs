@@ -58,7 +58,7 @@ namespace Utopia.World
 			
 			public void Execute(int index)
 			{
-				angles[index] = random.NextFloat(-180.0f + EPSILON, 180.0f);
+				angles[index] = random.NextFloat(-PI - EPSILON, PI);
 			}
 		}
 	}

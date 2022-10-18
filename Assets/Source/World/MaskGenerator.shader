@@ -36,6 +36,7 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 			struct VertexInfo
 			{
 				uint vertexID : SV_VertexID;
+				float2 uv : TEXCOORD0;
 			};
 			
 			struct FragmentInfo
@@ -46,10 +47,13 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 			
 			FragmentInfo Vertex(VertexInfo input)
 			{
+				uint id = input.vertexID;
+				
+				
+				
 				FragmentInfo output;
 				
-				
-				
+				output.uv = input.uv;
 				return output;
 			}
 			
