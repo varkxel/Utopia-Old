@@ -56,7 +56,7 @@ namespace Utopia.World
 			JobHandle sortJob = angles.SortJob().Schedule();
 
 			commandBuffer.SetRenderTarget(result);
-			commandBuffer.ClearRenderTarget(false, true, Color.clear);
+			commandBuffer.ClearRenderTarget(false, true, Color.black);
 			Graphics.ExecuteCommandBuffer(commandBuffer);
 			commandBuffer.Clear();
 
