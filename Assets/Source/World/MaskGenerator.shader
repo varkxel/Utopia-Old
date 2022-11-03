@@ -62,9 +62,8 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 				return float2(cos(angle), sin(angle));
 			}
 			
-			FragmentInfo Vertex(VertexInfo input)
+			void Vertex(uint id : SV_VertexID, out FragmentInfo output)
 			{
-				uint id = input.id;
 				float angle = angles[id];
 				float2 vertex = GetDirection(angle);
 
@@ -72,25 +71,24 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 				noisePosition += angle * _Scale;
 				vertex *= NoiseFractal(noisePosition, _Octaves, _Lacunarity, _Gain);
 				
-				FragmentInfo output;
-				output.position_HCS = float4(vertex, 0.0f, 1.0f);
-				output.uv = input.uv;
-				return output;
+				output.position_HCS = float4(vertex, 1.0f, 1.0f);
+				//output.uv = input.uv;
 			}
 			
 			void Geometry()
 			{
 			}
 			
-			float4 Fragment(FragmentInfo input) : SV_Target
+			float Fragment(FragmentInfo input) : SV_Target
 			{
 				float2 mask = input.uv;
 				mask -= 0.5;
 				mask = 0.5 - abs(mask);
 				mask *= 2.0;
 
-				mask = lerp(0.0 - _Base, 1.0 + _Cutoff, mask);
-				mask = clamp(mask, 0.0, 1.0);
+				// Bias the heightmap to be higher towards the centre and 0 around the edges - smoothly.
+				//mask = lerp(0.0 - _Base, 1.0 + _Cutoff, smoothstep(0, 1, mask));
+				//mask = clamp(mask, 0.0, 1.0);
 
 				float maskValue = (mask.x + mask.y) / 2.0;
 				return maskValue;
