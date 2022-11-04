@@ -51,7 +51,7 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 
 			float Fragment(FragmentInfo input) : SV_Target
 			{
-				return 1
+				return 1;
 			}
 			
 			ENDHLSL
