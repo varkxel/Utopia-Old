@@ -137,7 +137,7 @@ namespace Utopia.World
 			}
 		}
 
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		[BurstCompile(FloatPrecision.Medium, FloatMode.Fast)]
 		private struct ExtentsJob : IJobParallelFor
 		{
 			public float seed;
@@ -156,39 +156,17 @@ namespace Utopia.World
 			}
 		}
 
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
-		private struct MinMaxJobParallel : IJobParallelFor
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
+		private static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
-			public volatile float minimum;
-			public volatile float maximum;
-
-			[ReadOnly] public NativeArray<float> array;
-
-			public void Execute(int index)
+			minimum = float.MaxValue;
+			maximum = float.MaxValue;
+			
+			for(int i = 0; i < length; i++)
 			{
-				float val = array[index];
-				if(val > maximum) maximum = val;
-				if(val < minimum) minimum = val;
-			}
-		}
-
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
-		private struct MinMaxJob : IJob
-		{
-			public float minimum;
-			public float maximum;
-
-			[ReadOnly] public NativeArray<float> array;
-
-			public void Execute()
-			{
-				float length = array.Length;
-				for(int i = 0; i < length; i++)
-				{
-					float val = array[i];
-					minimum = min(minimum, val);
-					maximum = max(maximum, val);
-				}
+				float val = array[i];
+				minimum = min(val, minimum);
+				maximum = max(val, maximum);
 			}
 		}
 
