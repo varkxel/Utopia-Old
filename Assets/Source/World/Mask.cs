@@ -1,7 +1,7 @@
-﻿using System.Threading;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -11,6 +11,10 @@ using float3 = Unity.Mathematics.float3;
 using float4x4 = Unity.Mathematics.float4x4;
 using quaternion = Unity.Mathematics.quaternion;
 using Random = Unity.Mathematics.Random;
+using static Unity.Burst.Intrinsics.X86.Sse;
+using static Unity.Burst.Intrinsics.X86.Sse2;
+using static Unity.Burst.Intrinsics.X86.Sse4_1;
+using static Unity.Burst.Intrinsics.X86.Avx;
 
 namespace Utopia.World
 {
@@ -159,14 +163,84 @@ namespace Utopia.World
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
+			// If statement is optimised away.
+			if(IsAvxSupported)
+			{
+				// Use optimised AVX code path if available on the CPU.
+				MinMax_AVX(array, length, out minimum, out maximum);
+			}
+			else
+			{
+				// Use default code path otherwise.
+				MinMax_Default(array, length, out minimum, out maximum);
+			}
+		}
+
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
+		private static unsafe void MinMax_Default([ReadOnly] float* array, int length, out float minimum, out float maximum)
+		{
 			minimum = float.MaxValue;
-			maximum = float.MaxValue;
-			
+			maximum = float.MinValue;
+
 			for(int i = 0; i < length; i++)
 			{
-				float val = array[i];
-				minimum = min(val, minimum);
-				maximum = max(val, maximum);
+				float value = array[i];
+				minimum = min(minimum, value);
+				maximum = max(maximum, value);
+			}
+		}
+
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
+		private static unsafe void MinMax_AVX([ReadOnly] float* array, int length, out float minimum, out float maximum)
+		{
+			// Initialise the outputs
+			minimum = float.MaxValue;
+			maximum = float.MaxValue;
+
+			// Calculate the chunks to operate on, and leftovers
+			int remainder = length % 8;
+			int lengthFloor = length - remainder;
+
+			// Create registers
+			v256 valRegister = new v256();
+			v256 minRegister = new v256(float.MaxValue);
+			v256 maxRegister = new v256(float.MinValue);
+
+			for(int offset = 0; offset < lengthFloor; offset += sizeof(v256) / sizeof(float))
+			{
+				// Store 8 floats from the array
+				mm256_store_ps(&array[offset], valRegister);
+
+				// Calculate the min/max for the registers
+				minRegister = mm256_min_ps(minRegister, valRegister);
+				maxRegister = mm256_max_ps(maxRegister, valRegister);
+			}
+
+			// Fill register with last values
+			float* vecData = stackalloc float[8];
+			for(int i = 0; i < remainder; i++) vecData[i] = array[i];
+			mm256_store_ps(vecData, valRegister);
+
+			// Do last min/max
+			minRegister = mm256_min_ps(minRegister, valRegister);
+			maxRegister = mm256_max_ps(maxRegister, valRegister);
+
+			// Reduce (, reuse, recycle...)
+			v128 minLower = mm256_extractf128_ps(minRegister, 0);
+			v128 minUpper = mm256_extractf128_ps(minRegister, 1);
+			v128 minResult = min_ps(minLower, minUpper);
+
+			v128 maxLower = mm256_extractf128_ps(maxRegister, 0);
+			v128 maxUpper = mm256_extractf128_ps(maxRegister, 1);
+			v128 maxResult = max_ps(maxLower, maxUpper);
+
+			for(int i = 0; i < 4; i++)
+			{
+				minimum = min(minimum, extract_ps(minResult, 0));
+				minResult = srli_epi32(minResult, 32);
+
+				maximum = max(maximum, extract_ps(maxResult, 0));
+				maxResult = srli_epi32(maxResult, 32);
 			}
 		}
 
