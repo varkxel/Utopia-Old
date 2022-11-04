@@ -2,15 +2,8 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 {
 	Properties
 	{
-		_Seed("Seed", Float) = 0
-		
-		_Scale("Scale", Float) = 360.0
-		_Octaves("Octaves", Integer) = 4
-		_Lacunarity("Lacunarity", Float) = 2.0
-		_Gain("Gain", Float) = 0.5
-		
-		_Base("Base Mask", Float) = 0.5
-		_Cutoff("Cutoff Mask", Float) = 0.15 
+		_Mainland("Mainland Cutoff", Float) = 0.5
+		_Ocean("Ocean Cutoff", Float) = 0.15
 	}
 	SubShader
 	{
@@ -20,78 +13,45 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 		Blend Off
 		Cull Off
 		ZClip False
-		
+
 		Pass
 		{
 			HLSLPROGRAM
-			
+
 			#pragma vertex Vertex
 			#pragma fragment Fragment
-			
+
 			#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/RenderPass/CustomPass/CustomPassCommon.hlsl"
-			#include "Assets/Source/Noise/Noise.hlsl"
-			
+
 			StructuredBuffer<float> angles;
 
 			CBUFFER_START(UnityPerMaterial)
-				float _Seed;
-				
-				float _Scale;
-				uint _Octaves;
-				float _Lacunarity;
-				float _Gain;
-				
-				float _Base;
-				float _Cutoff;
+				float _Mainland;
+				float _Ocean;
 			CBUFFER_END
-			
-			struct VertexInfo
-			{
-				uint id : SV_VertexID;
-				float2 uv : TEXCOORD0;
-			};
-			
+
 			struct FragmentInfo
 			{
 				float4 position_HCS : SV_POSITION;
-				float2 uv : TEXCOORD0;
+				float2 position2D : TEXCOORD0;
 			};
-			
-			float2 GetDirection(float angle)
-			{
-				return float2(cos(angle), sin(angle));
-			}
-			
-			void Vertex(uint id : SV_VertexID, out FragmentInfo output)
-			{
-				float angle = angles[id];
-				float2 vertex = GetDirection(angle);
 
-				float noisePosition = _Seed;
-				noisePosition += angle * _Scale;
-				vertex *= NoiseFractal(noisePosition, _Octaves, _Lacunarity, _Gain);
-				
-				output.position_HCS = float4(vertex, 1.0f, 1.0f);
-				//output.uv = input.uv;
+			void Vertex(float3 position_OS : POSITION, out FragmentInfo output)
+			{
+				float3 position_WS = TransformObjectToWorld(position_OS);
+				float4 position_HCS = TransformWorldToHClip(position_WS);
+
+				output.position_HCS = position_HCS;
+				output.position2D = position_OS;
 			}
-			
+
 			void Geometry()
 			{
 			}
-			
+
 			float Fragment(FragmentInfo input) : SV_Target
 			{
-				float2 mask = input.uv;
-				mask -= 0.5;
-				mask = 0.5 - abs(mask);
-				mask *= 2.0;
-
-				// Bias the heightmap to be higher towards the centre and 0 around the edges - smoothly.
-				//mask = lerp(0.0 - _Base, 1.0 + _Cutoff, smoothstep(0, 1, mask));
-				//mask = clamp(mask, 0.0, 1.0);
-
-				float maskValue = (mask.x + mask.y) / 2.0;
-				return maskValue;
+				return 1
 			}
 			
 			ENDHLSL

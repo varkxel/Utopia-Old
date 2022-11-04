@@ -37,18 +37,18 @@ namespace Utopia.World
 			name = "MaskGenerator"
 		};
 
-		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(0.25f));
+		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(0.5f));
 		private static readonly float4x4 matrixLook = float4x4.TRS(float3(0, 0, -1), quaternion.identity, float3(1));
 		private static readonly float4x4 matrixOrtho = float4x4.Ortho(2, 2, 0.01f, 2);
 
 		private const string shader = "Hidden/Utopia/World/MaskGenerator";
-		public Material material;
+		private Material material;
 
 		public Mask(int size, GenerationSettings settings)
 		{
 			this.settings = settings;
 
-			//material = new Material(Shader.Find(shader));
+			material = new Material(Shader.Find(shader));
 			result = new RenderTexture(size, size, 0, RenderTextureFormat.RFloat)
 			{
 				filterMode = FilterMode.Trilinear
@@ -110,6 +110,7 @@ namespace Utopia.World
 			{
 				vertices = vertices.Reinterpret<Vector3>().ToArray(),
 				triangles = indicesJob.indices.ToArray(),
+
 				indexFormat = IndexFormat.UInt16
 			};
 			commandBuffer.DrawMesh(mesh, matrixTransform, material);
