@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Threading;
+using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Burst;
 using Unity.Collections;
@@ -13,6 +14,7 @@ using Random = Unity.Mathematics.Random;
 
 namespace Utopia.World
 {
+	[BurstCompile]
 	public class Mask
 	{
 		[System.Serializable]
@@ -85,9 +87,6 @@ namespace Utopia.World
 			{
 				angles = angles,
 				vertices = vertices.Slice(1),
-
-				seed = random.NextFloat(),
-				settings = this.settings
 			};
 			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, 4);
 			
@@ -121,7 +120,7 @@ namespace Utopia.World
 			indicesJob.indices.Dispose();
 		}
 
-		[BurstCompile(FloatPrecision.High, FloatMode.Deterministic)]
+		[BurstCompile(FloatPrecision.High, FloatMode.Default)]
 		private struct AnglesJob : IJob
 		{
 			public Random random;
@@ -138,6 +137,61 @@ namespace Utopia.World
 			}
 		}
 
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		private struct ExtentsJob : IJobParallelFor
+		{
+			public float seed;
+			public GenerationSettings settings;
+
+			[ReadOnly]  public NativeArray<float> angles;
+			[WriteOnly] public NativeArray<float> extents;
+
+			public void Execute(int index)
+			{
+				float samplePoint = seed;
+				samplePoint += angles[index] * settings.scale;
+
+				float extent = Smooth1D.Fractal(samplePoint, settings.octaves, settings.lacunarity, settings.gain);
+				extents[index] = extent;
+			}
+		}
+
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		private struct MinMaxJobParallel : IJobParallelFor
+		{
+			public volatile float minimum;
+			public volatile float maximum;
+
+			[ReadOnly] public NativeArray<float> array;
+
+			public void Execute(int index)
+			{
+				float val = array[index];
+				if(val > maximum) maximum = val;
+				if(val < minimum) minimum = val;
+			}
+		}
+
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		private struct MinMaxJob : IJob
+		{
+			public float minimum;
+			public float maximum;
+
+			[ReadOnly] public NativeArray<float> array;
+
+			public void Execute()
+			{
+				float length = array.Length;
+				for(int i = 0; i < length; i++)
+				{
+					float val = array[i];
+					minimum = min(minimum, val);
+					maximum = max(maximum, val);
+				}
+			}
+		}
+
 		[BurstCompile]
 		private struct IndicesJob : IJob
 		{
@@ -150,9 +204,11 @@ namespace Utopia.World
 				int indicesCount = indices.Length;
 				for(int i = 0; i < indicesCount; i++)
 				{
+					// Make every first index equal to zero.
 					int multiplier = (i % 3 != 0) ? 1 : 0;
-					
 					indices[i] = currentIndex * multiplier;
+					
+					// Increment the counter only on each 2nd index.
 					currentIndex += (i % 3 == 1) ? 1 : 0;
 				}
 			}
@@ -161,11 +217,8 @@ namespace Utopia.World
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private struct VertexJob : IJobParallelFor
 		{
-			public float seed;
-
-			public GenerationSettings settings;
-
 			[ReadOnly]  public NativeArray<float> angles;
+			[ReadOnly]  public NativeArray<float> extents;
 			[WriteOnly] public NativeSlice<float3> vertices;
 
 			public void Execute(int index)
@@ -173,10 +226,7 @@ namespace Utopia.World
 				float angle = angles[index];
 				float2 direction = float2(cos(angle), sin(angle));
 
-				float samplePoint = seed;
-				samplePoint += angle * settings.scale;
-
-				direction *= 1.0f + Smooth1D.Fractal(samplePoint, settings.octaves, settings.lacunarity, settings.gain);
+				float extent = extents[index];
 
 				vertices[index] = float3(direction, 0.0f);
 			}
