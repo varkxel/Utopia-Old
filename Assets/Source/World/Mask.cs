@@ -3,6 +3,7 @@ using UnityEngine.Rendering;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Utopia.Noise;
@@ -72,25 +73,56 @@ namespace Utopia.World
 				angles = new NativeArray<float>(verticesCount, Allocator.TempJob),
 				angleCount = verticesCount
 			};
+			
 			JobHandle anglesHandle = anglesJob.Schedule();
-
+			// Angles Job Begin
+			
 			IndicesJob indicesJob = new IndicesJob()
 			{
 				indices = new NativeArray<int>(((verticesCount - 2) * 3) + 3, Allocator.TempJob)
 			};
 			JobHandle indicesJobHandle = indicesJob.Schedule();
-
+			
+			// Angles Job End
 			anglesHandle.Complete();
 			NativeArray<float> angles = anglesJob.angles;
 			random = anglesJob.random;
-			angles.Sort();
 
+			ExtentsJob extentsJob = new ExtentsJob()
+			{
+				extents = new NativeArray<float>(verticesCount, Allocator.TempJob),
+				angles = new NativeArray<float>(verticesCount, Allocator.TempJob),
+
+				seed = random.NextFloat(),
+				settings = settings
+			};
+			angles.CopyTo(extentsJob.angles);
+			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, 4);
+			JobHandle anglesSortJob = angles.SortJob().Schedule();
+			
 			NativeArray<float3> vertices = new NativeArray<float3>(verticesCount + 1, Allocator.TempJob);
 			vertices[0] = float3.zero;
+			
+			extentsHandle.Complete();
+			extentsJob.angles.Dispose();
+			NativeArray<float> extents = extentsJob.extents;
+			
+			float extentsMin, extentsMax;
+			unsafe
+			{
+				MinMax((float*) extents.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
+			}
+			
+			//normalize extents
+			extents.Sort();
+			
+			anglesSortJob.Complete();
+			
 			VertexJob vertexJob = new VertexJob()
 			{
 				angles = angles,
 				vertices = vertices.Slice(1),
+				extents = extents
 			};
 			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, 4);
 			
