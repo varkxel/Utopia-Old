@@ -73,17 +73,15 @@ namespace Utopia.World
 				angles = new NativeArray<float>(verticesCount, Allocator.TempJob),
 				angleCount = verticesCount
 			};
-			
 			JobHandle anglesHandle = anglesJob.Schedule();
-			// Angles Job Begin
 			
+			// Schedule indices job whilst angles job runs
 			IndicesJob indicesJob = new IndicesJob()
 			{
 				indices = new NativeArray<int>(((verticesCount - 2) * 3) + 3, Allocator.TempJob)
 			};
 			JobHandle indicesJobHandle = indicesJob.Schedule();
 			
-			// Angles Job End
 			anglesHandle.Complete();
 			NativeArray<float> angles = anglesJob.angles;
 			random = anglesJob.random;
@@ -107,22 +105,30 @@ namespace Utopia.World
 			extentsJob.angles.Dispose();
 			NativeArray<float> extents = extentsJob.extents;
 			
+			NativeArray<float> extentsClone = new NativeArray<float>(extents, Allocator.Temp);
+			JobHandle extentsSortJob = extents.SortJob().Schedule();
+			
+			// Calculate the min/max whilst the extents are sorted, using a duplicated array.
 			float extentsMin, extentsMax;
 			unsafe
 			{
-				MinMax((float*) extents.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
+				MinMax((float*) extentsClone.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
 			}
+			extentsClone.Dispose();
 			
-			//normalize extents
-			extents.Sort();
-			
+			// Sort the extents along with the angles
+			extentsSortJob.Complete();
 			anglesSortJob.Complete();
 			
+			// Normalisation done in vertex job
 			VertexJob vertexJob = new VertexJob()
 			{
 				angles = angles,
 				vertices = vertices.Slice(1),
-				extents = extents
+				extents = extents,
+				
+				extentsMin = extentsMin,
+				extentsMax = extentsMax
 			};
 			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, 4);
 			
@@ -195,7 +201,7 @@ namespace Utopia.World
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
-			// If statement is optimised away.
+			// If statement is optimised away, Burst recognises it as compile time constant.
 			if(IsAvxSupported)
 			{
 				// Use optimised AVX code path if available on the CPU.
@@ -222,6 +228,19 @@ namespace Utopia.World
 			}
 		}
 
+		/// <summary>
+		/// AVX Pathway for the MinMax function.
+		/// I found that the burst compiler isn't generating code utilising the YMM registers,
+		/// so have developed a pathway specifically for AVX-capable chips that does utilise the 256-bit registers.
+		/// </summary>
+		/// <remarks>
+		/// AVX512 improvements are possible beyond the 512-bit registers:
+		/// The reduce instruction would be extremely useful for coalescing the final values into a float.
+		/// </remarks>
+		/// <param name="array">Pointer to the array to calculate min/max from.</param>
+		/// <param name="length">Length of the array to operate on.</param>
+		/// <param name="minimum">The minimum value in the array.</param>
+		/// <param name="maximum">The maximum value in the array.</param>
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private static unsafe void MinMax_AVX([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
@@ -238,7 +257,8 @@ namespace Utopia.World
 			v256 minRegister = new v256(float.MaxValue);
 			v256 maxRegister = new v256(float.MinValue);
 
-			for(int offset = 0; offset < lengthFloor; offset += sizeof(v256) / sizeof(float))
+			int chunkSize = sizeof(v256) / sizeof(float);	// Should be constant
+			for(int offset = 0; offset < lengthFloor; offset += chunkSize)
 			{
 				// Store 8 floats from the array
 				mm256_store_ps(&array[offset], valRegister);
@@ -266,11 +286,14 @@ namespace Utopia.World
 			v128 maxUpper = mm256_extractf128_ps(maxRegister, 1);
 			v128 maxResult = max_ps(maxLower, maxUpper);
 
+			// Split these to allow for proper auto-vectorisation
 			for(int i = 0; i < 4; i++)
 			{
 				minimum = min(minimum, extract_ps(minResult, 0));
 				minResult = srli_epi32(minResult, 32);
-
+			}
+			for(int i = 0; i < 4; i++)
+			{
 				maximum = max(maximum, extract_ps(maxResult, 0));
 				maxResult = srli_epi32(maxResult, 32);
 			}
@@ -302,7 +325,10 @@ namespace Utopia.World
 		private struct VertexJob : IJobParallelFor
 		{
 			[ReadOnly]  public NativeArray<float> angles;
+
+			public float extentsMin, extentsMax;
 			[ReadOnly]  public NativeArray<float> extents;
+
 			[WriteOnly] public NativeSlice<float3> vertices;
 
 			public void Execute(int index)
@@ -311,6 +337,8 @@ namespace Utopia.World
 				float2 direction = float2(cos(angle), sin(angle));
 
 				float extent = extents[index];
+				extent = unlerp(extentsMin, extentsMax, extent);
+				direction *= extent;
 
 				vertices[index] = float3(direction, 0.0f);
 			}
