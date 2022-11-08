@@ -2,9 +2,8 @@
 using Unity.Burst.Intrinsics;
 using static Unity.Burst.Intrinsics.X86.Sse;
 using static Unity.Burst.Intrinsics.X86.Sse3;
-using static Unity.Burst.Intrinsics.X86.Sse4_1;
 
-namespace Utopia
+namespace MathsUtils
 {
 	[BurstCompile]
 	public static class SSE4Utils

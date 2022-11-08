@@ -1,8 +1,8 @@
-﻿using UnityEngine;
+﻿using MathsUtils;
+using UnityEngine;
 using UnityEngine.Rendering;
 
 using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using static Unity.Burst.Intrinsics.X86.Avx;
 
 using Unity.Collections;
@@ -24,7 +24,7 @@ namespace Utopia.World
 	[BurstCompile]
 	public class Mask
 	{
-		private const int batchSize = AVXUtils.MinMax_batchSize;
+		private const int batchSize = MathsUtil.MinMax_MaxBatch;
 
 		[System.Serializable]
 		public struct GenerationSettings
@@ -106,7 +106,7 @@ namespace Utopia.World
 			float extentsMin, extentsMax;
 			unsafe
 			{
-				MinMax((float*) extents.GetUnsafePtr(), extents.Length, out extentsMin, out extentsMax);
+				MathsUtil.MinMax((float*) extents.GetUnsafePtr(), extents.Length, out extentsMin, out extentsMax);
 			}
 
 			// Normalisation done in vertex job
@@ -196,30 +196,6 @@ namespace Utopia.World
 
 				float extent = Smooth1D.Fractal(samplePoint, settings.octaves, settings.lacunarity, settings.gain);
 				extents[index] = extent;
-			}
-		}
-
-		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private static unsafe void MinMax(float* array, int length, out float minimum, out float maximum)
-		{
-			// If statement is optimised away, Burst recognises it as compile time constant.
-			if(IsAvxSupported)
-			{
-				// Use optimised AVX code path if available on the CPU.
-				AVXUtils.MinMax(array, length, out minimum, out maximum);
-			}
-			else
-			{
-				// Use default code path otherwise.
-				minimum = float.MaxValue;
-				maximum = float.MinValue;
-
-				for(int i = 0; i < length; i++)
-				{
-					float value = array[i];
-					minimum = min(minimum, value);
-					maximum = max(maximum, value);
-				}
 			}
 		}
 

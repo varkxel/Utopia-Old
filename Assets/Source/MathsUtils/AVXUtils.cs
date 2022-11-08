@@ -7,7 +7,7 @@ using Unity.Collections;
 
 using System.Runtime.CompilerServices;
 
-namespace Utopia
+namespace MathsUtils
 {
 	[BurstCompile]
 	public static class AVXUtils
@@ -19,7 +19,7 @@ namespace Utopia
 			lower = mm256_castps256_ps128(vec);
 			upper = mm256_extractf128_ps(vec, 1);
 		}
-		
+
 		#region Reduction
 
 		[BurstCompile]
@@ -40,6 +40,9 @@ namespace Utopia
 
 		#endregion
 
+		/// <summary>
+		/// The size of a batch for the <see cref="MinMax"/> function.
+		/// </summary>
 		public const int MinMax_batchSize = 8;
 
 		/// <summary>
@@ -70,7 +73,7 @@ namespace Utopia
 			v256 minRegister = new v256(float.MaxValue);
 			v256 maxRegister = new v256(float.MinValue);
 
-			// Loop through array
+			// Loop through the array
 			for(int offset = 0; offset < lengthFloor; offset += MinMax_batchSize)
 			{
 				// Store 8 floats from the array
@@ -81,6 +84,7 @@ namespace Utopia
 				maxRegister = mm256_max_ps(maxRegister, valRegister);
 			}
 
+			// Reduce vectors into single values
 			minimum = ReduceMin(minRegister);
 			maximum = ReduceMax(maxRegister);
 		}
