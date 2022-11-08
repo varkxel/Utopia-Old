@@ -1,42 +1,46 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
+
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
+using static Unity.Burst.Intrinsics.X86.Avx;
+
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Jobs;
+
 using Unity.Mathematics;
-using Utopia.Noise;
 using static Unity.Mathematics.math;
+using Random = Unity.Mathematics.Random;
 using float3 = Unity.Mathematics.float3;
 using float4x4 = Unity.Mathematics.float4x4;
 using quaternion = Unity.Mathematics.quaternion;
-using Random = Unity.Mathematics.Random;
-using static Unity.Burst.Intrinsics.X86.Sse;
-using static Unity.Burst.Intrinsics.X86.Sse2;
-using static Unity.Burst.Intrinsics.X86.Sse4_1;
-using static Unity.Burst.Intrinsics.X86.Avx;
+
+using Unity.Jobs;
+
+using Utopia.Noise;
 
 namespace Utopia.World
 {
 	[BurstCompile]
 	public class Mask
 	{
+		private const int batchSize = AVXUtils.MinMax_batchSize;
+
 		[System.Serializable]
 		public struct GenerationSettings
 		{
 			[Header("Mesh Settings")]
-			[Range(4, 65535)] public int complexity;
+			[Range(batchSize, 65535)] public int complexity;
 
 			[Header("Noise Generation")]
 			public float scale;
-			
+
 			public uint octaves;
 			public float gain;
 			public float lacunarity;
 		}
 		public GenerationSettings settings;
-		
+
 		public RenderTexture result { get; private set; }
 
 		private CommandBuffer commandBuffer = new CommandBuffer()
@@ -44,7 +48,7 @@ namespace Utopia.World
 			name = "MaskGenerator"
 		};
 
-		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(0.5f));
+		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1.0f));
 		private static readonly float4x4 matrixLook = float4x4.TRS(float3(0, 0, -1), quaternion.identity, float3(1));
 		private static readonly float4x4 matrixOrtho = float4x4.Ortho(2, 2, 0.01f, 2);
 
@@ -56,7 +60,7 @@ namespace Utopia.World
 			this.settings = settings;
 
 			material = new Material(Shader.Find(shader));
-			result = new RenderTexture(size, size, 0, RenderTextureFormat.RFloat)
+			result = new RenderTexture(size, size, 0, RenderTextureFormat.ARGBFloat)
 			{
 				filterMode = FilterMode.Trilinear
 			};
@@ -65,61 +69,46 @@ namespace Utopia.World
 		public void Generate(ref Random random)
 		{
 			int verticesCount = settings.complexity;
-			verticesCount -= verticesCount % 4;
+			verticesCount -= verticesCount % batchSize;
 
+			NativeArray<float> angles = new NativeArray<float>(verticesCount, Allocator.TempJob);
 			AnglesJob anglesJob = new AnglesJob()
 			{
 				random = random,
-				angles = new NativeArray<float>(verticesCount, Allocator.TempJob),
+				angles = angles,
 				angleCount = verticesCount
 			};
 			JobHandle anglesHandle = anglesJob.Schedule();
-			
+
 			// Schedule indices job whilst angles job runs
+			NativeArray<int> indices = new NativeArray<int>(((verticesCount - 2) * 3) + 3, Allocator.TempJob);
 			IndicesJob indicesJob = new IndicesJob()
 			{
-				indices = new NativeArray<int>(((verticesCount - 2) * 3) + 3, Allocator.TempJob)
+				indices = indices
 			};
-			JobHandle indicesJobHandle = indicesJob.Schedule();
-			
-			anglesHandle.Complete();
-			NativeArray<float> angles = anglesJob.angles;
-			random = anglesJob.random;
+			JobHandle indicesHandle = indicesJob.Schedule();
 
+			NativeArray<float> extents = new NativeArray<float>(verticesCount, Allocator.TempJob);
 			ExtentsJob extentsJob = new ExtentsJob()
 			{
-				extents = new NativeArray<float>(verticesCount, Allocator.TempJob),
-				angles = new NativeArray<float>(verticesCount, Allocator.TempJob),
+				extents = extents,
+				angles = angles,
 
 				seed = random.NextFloat(),
 				settings = settings
 			};
-			angles.CopyTo(extentsJob.angles);
-			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, 4);
-			JobHandle anglesSortJob = angles.SortJob().Schedule();
-			
+			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, batchSize, anglesHandle);
+
 			NativeArray<float3> vertices = new NativeArray<float3>(verticesCount + 1, Allocator.TempJob);
 			vertices[0] = float3.zero;
-			
-			extentsHandle.Complete();
-			extentsJob.angles.Dispose();
-			NativeArray<float> extents = extentsJob.extents;
-			
-			NativeArray<float> extentsClone = new NativeArray<float>(extents, Allocator.Temp);
-			JobHandle extentsSortJob = extents.SortJob().Schedule();
-			
+
 			// Calculate the min/max whilst the extents are sorted, using a duplicated array.
 			float extentsMin, extentsMax;
 			unsafe
 			{
-				MinMax((float*) extentsClone.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
+				MinMax((float*) extents.GetUnsafePtr(), extents.Length, out extentsMin, out extentsMax);
 			}
-			extentsClone.Dispose();
-			
-			// Sort the extents along with the angles
-			extentsSortJob.Complete();
-			anglesSortJob.Complete();
-			
+
 			// Normalisation done in vertex job
 			VertexJob vertexJob = new VertexJob()
 			{
@@ -130,17 +119,18 @@ namespace Utopia.World
 				extentsMin = extentsMin,
 				extentsMax = extentsMax
 			};
-			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, 4);
-			
+			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize);
+
 			commandBuffer.SetRenderTarget(result);
 			commandBuffer.ClearRenderTarget(false, true, Color.black);
 			commandBuffer.SetViewProjectionMatrices(matrixLook, matrixOrtho);
-			
+
 			vertexJobHandle.Complete();
-			
+
+			extents.Dispose();
 			angles.Dispose();
-			
-			indicesJobHandle.Complete();
+
+			indicesHandle.Complete();
 
 			int indicesLength = indicesJob.indices.Length;
 			indicesJob.indices[indicesLength - 3] = 0;
@@ -162,7 +152,7 @@ namespace Utopia.World
 			indicesJob.indices.Dispose();
 		}
 
-		[BurstCompile(FloatPrecision.High, FloatMode.Default)]
+		[BurstCompile(FloatPrecision.Medium, FloatMode.Default)]
 		private struct AnglesJob : IJob
 		{
 			public Random random;
@@ -172,9 +162,20 @@ namespace Utopia.World
 
 			public void Execute()
 			{
+				const float start = -PI + EPSILON;
+				float baseOffset = (2.0f * PI) / (float) angleCount;
+
+				float currentAngle = start;
+				float lastOffset = 0.0f;
+
 				for(int i = 0; i < angleCount; i++)
 				{
-					angles[i] = random.NextFloat(-PI + EPSILON, PI);
+					angles[i] = currentAngle;
+
+					float offset = random.NextFloat(0.0f, baseOffset);
+					currentAngle += (baseOffset - lastOffset) + offset;
+
+					lastOffset = offset;
 				}
 			}
 		}
@@ -199,103 +200,26 @@ namespace Utopia.World
 		}
 
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
+		private static unsafe void MinMax(float* array, int length, out float minimum, out float maximum)
 		{
 			// If statement is optimised away, Burst recognises it as compile time constant.
 			if(IsAvxSupported)
 			{
 				// Use optimised AVX code path if available on the CPU.
-				MinMax_AVX(array, length, out minimum, out maximum);
+				AVXUtils.MinMax(array, length, out minimum, out maximum);
 			}
 			else
 			{
 				// Use default code path otherwise.
-				MinMax_Default(array, length, out minimum, out maximum);
-			}
-		}
+				minimum = float.MaxValue;
+				maximum = float.MinValue;
 
-		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private static unsafe void MinMax_Default([ReadOnly] float* array, int length, out float minimum, out float maximum)
-		{
-			minimum = float.MaxValue;
-			maximum = float.MinValue;
-
-			for(int i = 0; i < length; i++)
-			{
-				float value = array[i];
-				minimum = min(minimum, value);
-				maximum = max(maximum, value);
-			}
-		}
-
-		/// <summary>
-		/// AVX Pathway for the MinMax function.
-		/// I found that the burst compiler isn't generating code utilising the YMM registers,
-		/// so have developed a pathway specifically for AVX-capable chips that does utilise the 256-bit registers.
-		/// </summary>
-		/// <remarks>
-		/// AVX512 improvements are possible beyond the 512-bit registers:
-		/// The reduce instruction would be extremely useful for coalescing the final values into a float.
-		/// </remarks>
-		/// <param name="array">Pointer to the array to calculate min/max from.</param>
-		/// <param name="length">Length of the array to operate on.</param>
-		/// <param name="minimum">The minimum value in the array.</param>
-		/// <param name="maximum">The maximum value in the array.</param>
-		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private static unsafe void MinMax_AVX([ReadOnly] float* array, int length, out float minimum, out float maximum)
-		{
-			// Initialise the outputs
-			minimum = float.MaxValue;
-			maximum = float.MaxValue;
-
-			// Calculate the chunks to operate on, and leftovers
-			int remainder = length % 8;
-			int lengthFloor = length - remainder;
-
-			// Create registers
-			v256 valRegister = new v256();
-			v256 minRegister = new v256(float.MaxValue);
-			v256 maxRegister = new v256(float.MinValue);
-
-			int chunkSize = sizeof(v256) / sizeof(float);	// Should be constant
-			for(int offset = 0; offset < lengthFloor; offset += chunkSize)
-			{
-				// Store 8 floats from the array
-				mm256_store_ps(&array[offset], valRegister);
-
-				// Calculate the min/max for the registers
-				minRegister = mm256_min_ps(minRegister, valRegister);
-				maxRegister = mm256_max_ps(maxRegister, valRegister);
-			}
-
-			// Fill register with last values
-			float* vecData = stackalloc float[8];
-			for(int i = 0; i < remainder; i++) vecData[i] = array[i];
-			mm256_store_ps(vecData, valRegister);
-
-			// Do last min/max
-			minRegister = mm256_min_ps(minRegister, valRegister);
-			maxRegister = mm256_max_ps(maxRegister, valRegister);
-
-			// Reduce (, reuse, recycle...)
-			v128 minLower = mm256_extractf128_ps(minRegister, 0);
-			v128 minUpper = mm256_extractf128_ps(minRegister, 1);
-			v128 minResult = min_ps(minLower, minUpper);
-
-			v128 maxLower = mm256_extractf128_ps(maxRegister, 0);
-			v128 maxUpper = mm256_extractf128_ps(maxRegister, 1);
-			v128 maxResult = max_ps(maxLower, maxUpper);
-
-			// Split these to allow for proper auto-vectorisation
-			for(int i = 0; i < 4; i++)
-			{
-				minimum = min(minimum, extract_ps(minResult, 0));
-				minResult = srli_epi32(minResult, 32);
-			}
-			for(int i = 0; i < 4; i++)
-			{
-				maximum = max(maximum, extract_ps(maxResult, 0));
-				maxResult = srli_epi32(maxResult, 32);
+				for(int i = 0; i < length; i++)
+				{
+					float value = array[i];
+					minimum = min(minimum, value);
+					maximum = max(maximum, value);
+				}
 			}
 		}
 
@@ -314,7 +238,7 @@ namespace Utopia.World
 					// Make every first index equal to zero.
 					int multiplier = (i % 3 != 0) ? 1 : 0;
 					indices[i] = currentIndex * multiplier;
-					
+
 					// Increment the counter only on each 2nd index.
 					currentIndex += (i % 3 == 1) ? 1 : 0;
 				}

@@ -1,3 +1,4 @@
+using Unity.Burst.Intrinsics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using Random = Unity.Mathematics.Random;
@@ -8,7 +9,6 @@ namespace Utopia.World
 	public class MaskTest : MonoBehaviour
 	{
 		public Texture2D tex;
-		public Material material;
 
 		public int complexity = 4096;
 		
@@ -16,7 +16,7 @@ namespace Utopia.World
 		{
 			Mask mask = new Mask(1024, new Mask.GenerationSettings()
 			{
-				complexity = 64,
+				complexity = 16384,
 				gain = 0.5f,
 				lacunarity = 2.0f,
 				octaves = 4,
@@ -25,7 +25,7 @@ namespace Utopia.World
 			Random random = new Random(347284);
 			mask.Generate(ref random);
 
-			tex = new Texture2D(1024, 1024, DefaultFormat.HDR, TextureCreationFlags.None);
+			tex = new Texture2D(1024, 1024, TextureFormat.RGBAFloat, false);
 
 			Graphics.CopyTexture(mask.result, tex);
 			mask.result.DiscardContents();
