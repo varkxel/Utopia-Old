@@ -3,6 +3,8 @@ using Unity.Burst.Intrinsics;
 using static Unity.Burst.Intrinsics.X86.Sse;
 using static Unity.Burst.Intrinsics.X86.Sse3;
 
+using Unity.Collections;
+
 namespace MathsUtils
 {
 	[BurstCompile]
@@ -36,5 +38,15 @@ namespace MathsUtils
 		}
 		
 		#endregion
+
+		[BurstCompile]
+		internal static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
+		{
+			SSE2Utils.MinMax_SSE2Base(array, length, out v128 minRegister, out v128 maxRegister);
+
+			// Reduce vectors into single values
+			minimum = ReduceMin(minRegister);
+			maximum = ReduceMax(maxRegister);
+		}
 	}
 }

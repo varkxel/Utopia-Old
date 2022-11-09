@@ -1,13 +1,18 @@
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
-using Unity.Collections;
 using static Unity.Burst.Intrinsics.X86.Sse;
+
+using Unity.Collections;
+
+using System.Runtime.CompilerServices;
 
 namespace MathsUtils
 {
 	[BurstCompile]
 	public static class SSE2Utils
 	{
+		#region Reduction
+
 		/*
 			Designed around this answer:
 			https://stackoverflow.com/a/35270026
@@ -33,25 +38,34 @@ namespace MathsUtils
 			return cvtss_f32(max);
 		}
 
+		#endregion
+
 		/// <summary>
 		/// The size of a batch for the <see cref="MinMax"/> function.
 		/// </summary>
 		public const int MinMax_batchSize = 4;
 
 		[BurstCompile]
-		public static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
+		internal static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
-			// Initialise the outputs
-			minimum = float.MaxValue;
-			maximum = float.MaxValue;
+			MinMax_SSE2Base(array, length, out v128 minRegister, out v128 maxRegister);
 
+			// Reduce vectors into single values
+			minimum = ReduceMin(minRegister);
+			maximum = ReduceMax(maxRegister);
+		}
+
+		[BurstCompile]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static unsafe void MinMax_SSE2Base([ReadOnly] float* array, int length, out v128 minRegister, out v128 maxRegister)
+		{
 			// Calculate the chunks to operate on, and leftovers
 			int remainder = length % MinMax_batchSize;
 			int lengthFloor = length - remainder;
 
 			// Create registers
-			v128 minRegister = new v128(float.MaxValue);
-			v128 maxRegister = new v128(float.MinValue);
+			minRegister = new v128(float.MaxValue);
+			maxRegister = new v128(float.MinValue);
 
 			// Loop through the array
 			for(int offset = 0; offset < lengthFloor; offset += MinMax_batchSize)
@@ -63,10 +77,6 @@ namespace MathsUtils
 				minRegister = min_ps(minRegister, valRegister);
 				maxRegister = max_ps(maxRegister, valRegister);
 			}
-
-			// Reduce vectors into single values
-			minimum = ReduceMin(minRegister);
-			maximum = ReduceMax(maxRegister);
 		}
 	}
 }

@@ -1,6 +1,5 @@
 using Unity.Burst;
-using static Unity.Burst.Intrinsics.X86.Avx;
-using static Unity.Burst.Intrinsics.X86.Sse2;
+using Unity.Burst.Intrinsics;
 
 using Unity.Collections;
 
@@ -11,21 +10,22 @@ namespace MathsUtils
 	[BurstCompile]
 	public static class MathsUtil
 	{
-		public const int MinMax_MaxBatch = 8;
+		public const int MinMax_MaxBatch = AVXUtils.MinMax_batchSize;
 
 		[BurstCompile]
 		public static int MinMax_BatchSize()
 		{
-			if(IsAvxSupported) return 8;
-			else if(IsSse2Supported) return 4;
+			if(X86.Avx.IsAvxSupported) return AVXUtils.MinMax_batchSize;
+			else if(X86.Sse2.IsSse2Supported) return SSE2Utils.MinMax_batchSize;
 			else return 1;
 		}
 
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		public static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
-			if(IsAvxSupported) AVXUtils.MinMax(array, length, out minimum, out maximum);
-			else if(IsSse2Supported) MinMax_Default(array, length, out minimum, out maximum);
+			if(X86.Avx.IsAvxSupported)            AVXUtils.MinMax(array, length, out minimum, out maximum);
+			else if(X86.Sse4_1.IsSse41Supported) SSE4Utils.MinMax(array, length, out minimum, out maximum);
+			else if(X86.Sse2.IsSse2Supported)    SSE2Utils.MinMax(array, length, out minimum, out maximum);
 			else MinMax_Default(array, length, out minimum, out maximum);
 		}
 
