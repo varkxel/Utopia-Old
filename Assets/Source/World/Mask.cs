@@ -1,9 +1,7 @@
-﻿using MathsUtils;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering;
 
 using Unity.Burst;
-using static Unity.Burst.Intrinsics.X86.Avx;
 
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -18,6 +16,7 @@ using quaternion = Unity.Mathematics.quaternion;
 using Unity.Jobs;
 
 using Utopia.Noise;
+using MathsUtils;
 
 namespace Utopia.World
 {
@@ -102,11 +101,13 @@ namespace Utopia.World
 			NativeArray<float3> vertices = new NativeArray<float3>(verticesCount + 1, Allocator.TempJob);
 			vertices[0] = float3.zero;
 
-			// Calculate the min/max whilst the extents are sorted, using a duplicated array.
+			extentsHandle.Complete();
+
+			// Find maximum and minimum extent for normalisation
 			float extentsMin, extentsMax;
 			unsafe
 			{
-				MathsUtil.MinMax((float*) extents.GetUnsafePtr(), extents.Length, out extentsMin, out extentsMax);
+				MathsUtil.MinMax((float*) extents.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
 			}
 
 			// Normalisation done in vertex job
@@ -115,11 +116,13 @@ namespace Utopia.World
 				angles = angles,
 				vertices = vertices.Slice(1),
 				extents = extents,
-				
+
 				extentsMin = extentsMin,
 				extentsMax = extentsMax
 			};
-			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize);
+
+			// Schedule parallel across all cores - completely parallel job, though nothing can really run while it's running.
+			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, extentsHandle));
 
 			commandBuffer.SetRenderTarget(result);
 			commandBuffer.ClearRenderTarget(false, true, Color.black);
@@ -132,15 +135,10 @@ namespace Utopia.World
 
 			indicesHandle.Complete();
 
-			int indicesLength = indicesJob.indices.Length;
-			indicesJob.indices[indicesLength - 3] = 0;
-			indicesJob.indices[indicesLength - 2] = indicesJob.indices[indicesLength - 4];
-			indicesJob.indices[indicesLength - 1] = indicesJob.indices[1];
-
 			Mesh mesh = new Mesh()
 			{
 				vertices = vertices.Reinterpret<Vector3>().ToArray(),
-				triangles = indicesJob.indices.ToArray(),
+				triangles = indices.ToArray(),
 
 				indexFormat = IndexFormat.UInt16
 			};
@@ -149,7 +147,7 @@ namespace Utopia.World
 			commandBuffer.Clear();
 
 			vertices.Dispose();
-			indicesJob.indices.Dispose();
+			indices.Dispose();
 		}
 
 		[BurstCompile(FloatPrecision.Medium, FloatMode.Default)]
@@ -202,7 +200,7 @@ namespace Utopia.World
 		[BurstCompile]
 		private struct IndicesJob : IJob
 		{
-			[WriteOnly] public NativeArray<int> indices;
+			public NativeArray<int> indices;
 
 			public void Execute()
 			{
@@ -218,6 +216,11 @@ namespace Utopia.World
 					// Increment the counter only on each 2nd index.
 					currentIndex += (i % 3 == 1) ? 1 : 0;
 				}
+
+				// Final triangle
+				indices[indicesCount - 3] = 0;
+				indices[indicesCount - 2] = indices[indicesCount - 4];
+				indices[indicesCount - 1] = indices[1];
 			}
 		}
 
