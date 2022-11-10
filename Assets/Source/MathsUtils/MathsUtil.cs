@@ -2,7 +2,8 @@ using Unity.Burst;
 using Unity.Burst.Intrinsics;
 
 using Unity.Collections;
-
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using static Unity.Mathematics.math;
 
 namespace MathsUtils
@@ -41,6 +42,25 @@ namespace MathsUtils
 				float value = array[i];
 				minimum = min(minimum, value);
 				maximum = max(maximum, value);
+			}
+		}
+
+		public struct MinMaxJob : IJob
+		{
+			[ReadOnly] public NativeArray<float> array;
+
+			[WriteOnly] public NativeArray<float> minMax;
+
+			public void Execute()
+			{
+				float minimum, maximum;
+				unsafe
+				{
+					float* ptr = (float*) array.GetUnsafeReadOnlyPtr();
+					MinMax(ptr, array.Length, out minimum, out maximum);
+				}
+				minMax[0] = minimum;
+				minMax[1] = maximum;
 			}
 		}
 	}

@@ -4,7 +4,6 @@ using UnityEngine.Rendering;
 using Unity.Burst;
 
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
@@ -97,38 +96,37 @@ namespace Utopia.World
 				settings = settings
 			};
 			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, batchSize, anglesHandle);
-
+			
+			// Find maximum and minimum extent for normalisation
+			NativeArray<float> extentsMinMax = new NativeArray<float>(2, Allocator.TempJob);
+			MathsUtil.MinMaxJob minMaxJob = new MathsUtil.MinMaxJob()
+			{
+				array = extents,
+				minMax = extentsMinMax
+			};
+			JobHandle minMaxHandle = minMaxJob.Schedule(extentsHandle);
+			
+			// Normalisation done in vertex job
+			
 			NativeArray<float3> vertices = new NativeArray<float3>(verticesCount + 1, Allocator.TempJob);
 			vertices[0] = float3.zero;
-
-			extentsHandle.Complete();
-
-			// Find maximum and minimum extent for normalisation
-			float extentsMin, extentsMax;
-			unsafe
-			{
-				MathsUtil.MinMax((float*) extents.GetUnsafeReadOnlyPtr(), extents.Length, out extentsMin, out extentsMax);
-			}
-
-			// Normalisation done in vertex job
 			VertexJob vertexJob = new VertexJob()
 			{
 				angles = angles,
 				vertices = vertices.Slice(1),
 				extents = extents,
-
-				extentsMin = extentsMin,
-				extentsMax = extentsMax
+				extentsMinMax = extentsMinMax
 			};
 
 			// Schedule parallel across all cores - completely parallel job, though nothing can really run while it's running.
-			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, extentsHandle));
+			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, minMaxHandle));
 
 			commandBuffer.SetRenderTarget(result);
 			commandBuffer.ClearRenderTarget(false, true, Color.black);
 			commandBuffer.SetViewProjectionMatrices(matrixLook, matrixOrtho);
 
 			vertexJobHandle.Complete();
+			extentsMinMax.Dispose();
 
 			extents.Dispose();
 			angles.Dispose();
@@ -229,8 +227,8 @@ namespace Utopia.World
 		{
 			[ReadOnly]  public NativeArray<float> angles;
 
-			public float extentsMin, extentsMax;
 			[ReadOnly]  public NativeArray<float> extents;
+			[ReadOnly]  public NativeArray<float> extentsMinMax;
 
 			[WriteOnly] public NativeSlice<float3> vertices;
 
@@ -240,7 +238,7 @@ namespace Utopia.World
 				float2 direction = float2(cos(angle), sin(angle));
 
 				float extent = extents[index];
-				extent = unlerp(extentsMin, extentsMax, extent);
+				extent = unlerp(extentsMinMax[0], extentsMinMax[1], extent);
 				direction *= extent;
 
 				vertices[index] = float3(direction, 0.0f);
