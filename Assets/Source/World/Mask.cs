@@ -105,11 +105,26 @@ namespace Utopia.World
 				minMax = extentsMinMax
 			};
 			JobHandle minMaxHandle = minMaxJob.Schedule(extentsHandle);
-			
-			// Normalisation done in vertex job
-			
+
+			// Calculate the vertices / normalise
 			NativeArray<float3> vertices = new NativeArray<float3>(verticesCount + 1, Allocator.TempJob);
 			vertices[0] = float3.zero;
+
+			int smoothingAmount = verticesCount / 8;
+			
+			extentsHandle.Complete();
+
+			int extentsFinalIndex = extents.Length - 1;
+			SmoothJob smoothingJob = new SmoothJob()
+			{
+				array = extents.Slice(extentsFinalIndex - smoothingAmount, smoothingAmount),
+				smoothSamples = smoothingAmount,
+				startSample = extents[^(smoothingAmount + 1)],
+				endSample = extents[0]
+			};
+			int smoothingSliceSize = smoothingJob.array.Length;
+			JobHandle smoothingJobHandle = smoothingJob.Schedule(smoothingSliceSize, min(smoothingSliceSize, 8), minMaxHandle);
+			
 			VertexJob vertexJob = new VertexJob()
 			{
 				angles = angles,
@@ -117,9 +132,8 @@ namespace Utopia.World
 				extents = extents,
 				extentsMinMax = extentsMinMax
 			};
-
 			// Schedule parallel across all cores - completely parallel job, though nothing can really run while it's running.
-			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, minMaxHandle));
+			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, smoothingJobHandle));
 
 			commandBuffer.SetRenderTarget(result);
 			commandBuffer.ClearRenderTarget(false, true, Color.black);
@@ -192,6 +206,23 @@ namespace Utopia.World
 
 				float extent = Smooth1D.Fractal(samplePoint, settings.octaves, settings.lacunarity, settings.gain);
 				extents[index] = extent;
+			}
+		}
+
+		[BurstCompile]
+		private struct SmoothJob : IJobParallelFor
+		{
+			[WriteOnly] public NativeSlice<float> array;
+
+			public float startSample;
+			public float endSample;
+
+			public int smoothSamples;
+
+			public void Execute(int i)
+			{
+				float position = (float) i / (float) smoothSamples;
+				array[i] = lerp(startSample, endSample, smoothstep(0, 1, position));
 			}
 		}
 
