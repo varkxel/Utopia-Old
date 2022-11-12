@@ -42,16 +42,22 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 				float4 position_HCS = TransformWorldToHClip(position_WS);
 
 				output.position_HCS = position_HCS;
-				output.position2D = position_OS;
+				output.position2D = position_OS.xy;
 			}
 
 			void Geometry()
 			{
 			}
 
-			float Fragment(FragmentInfo input) : SV_Target
+			float4 Fragment(FragmentInfo input) : SV_Target
 			{
-				return 1;
+				float2 sample2D = 1.0 - abs(input.position2D.xy);
+				float sample = min(sample2D.x, sample2D.y);
+				
+				sample = lerp(0.0 - _Ocean, 1.0 + _Mainland, sample);
+				sample = clamp(sample, 0.0, 1.0);
+				
+				return float4(sample, 0, 0, 1);
 			}
 			
 			ENDHLSL

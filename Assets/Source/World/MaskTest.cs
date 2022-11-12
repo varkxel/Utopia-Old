@@ -14,15 +14,18 @@ namespace Utopia.World
 		
 		void Start()
 		{
-			Mask mask = new Mask(1024, new Mask.GenerationSettings()
+			Mask mask = new Mask(1024, new Mask.Settings()
 			{
 				complexity = 16384,
 				gain = 0.5f,
 				lacunarity = 2.0f,
 				octaves = 4,
-				scale = 1.0f
+				scale = 1.0f,
+				
+				seaLevel = 0.4f,
+				mainlandLevel = 0.5f
 			});
-			Random random = new Random(347284);
+			Random random = new Random(34724);
 			mask.Generate(ref random);
 
 			tex = new Texture2D(1024, 1024, TextureFormat.RGBAFloat, false);

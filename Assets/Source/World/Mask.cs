@@ -25,19 +25,22 @@ namespace Utopia.World
 		private const int batchSize = MathsUtil.MinMax_MaxBatch;
 
 		[System.Serializable]
-		public struct GenerationSettings
+		public struct Settings
 		{
 			[Header("Mesh Settings")]
 			[Range(batchSize, 65535)] public int complexity;
 
 			[Header("Noise Generation")]
 			public float scale;
-
 			public uint octaves;
 			public float gain;
 			public float lacunarity;
+
+			[Header("Levels")]
+			public float seaLevel;
+			public float mainlandLevel;
 		}
-		public GenerationSettings settings;
+		public Settings settings;
 
 		public RenderTexture result { get; private set; }
 
@@ -51,9 +54,12 @@ namespace Utopia.World
 		private static readonly float4x4 matrixOrtho = float4x4.Ortho(2, 2, 0.01f, 2);
 
 		private const string shader = "Hidden/Utopia/World/MaskGenerator";
-		private Material material;
+		private readonly Material material;
+		
+		private static readonly int mainlandProperty = Shader.PropertyToID("_Mainland");
+		private static readonly int oceanProperty = Shader.PropertyToID("_Ocean");
 
-		public Mask(int size, GenerationSettings settings)
+		public Mask(int size, Settings settings)
 		{
 			this.settings = settings;
 
@@ -96,6 +102,10 @@ namespace Utopia.World
 				settings = settings
 			};
 			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, batchSize, anglesHandle);
+			
+			// Set material properties
+			material.SetFloat(oceanProperty, settings.seaLevel);
+			material.SetFloat(mainlandProperty, settings.mainlandLevel);
 			
 			// Find maximum and minimum extent for normalisation
 			NativeArray<float> extentsMinMax = new NativeArray<float>(2, Allocator.TempJob);
@@ -194,7 +204,7 @@ namespace Utopia.World
 		private struct ExtentsJob : IJobParallelFor
 		{
 			public float seed;
-			public GenerationSettings settings;
+			public Settings settings;
 
 			[ReadOnly]  public NativeArray<float> angles;
 			[WriteOnly] public NativeArray<float> extents;
