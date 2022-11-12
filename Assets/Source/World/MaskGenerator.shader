@@ -55,6 +55,8 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 				float sample = min(sample2D.x, sample2D.y);
 				
 				sample = lerp(0.0 - _Ocean, 1.0 + _Mainland, sample);
+				//if(sample < 0.0f) return float4(0, 0, 1, 1);
+				//if(sample > 1.0f) return float4(0, 1, 0, 1);
 				sample = clamp(sample, 0.0, 1.0);
 				
 				return float4(sample, 0, 0, 1);
