@@ -19,60 +19,49 @@ using MathsUtils;
 
 namespace Utopia.World
 {
-	[BurstCompile]
+	[BurstCompile, System.Serializable]
 	public class Mask
 	{
-		private const int batchSize = MathsUtil.MinMax_MaxBatch;
+		public const int batchSize = MathsUtil.MinMax_MaxBatch;
 
-		[System.Serializable]
-		public struct Settings
-		{
-			[Header("Mesh Settings")]
-			[Range(batchSize, 65535)] public int complexity;
+		[SerializeField, HideInInspector]
+		private int size = 4096;
 
-			[Header("Noise Generation")]
-			public float scale;
-			public uint octaves;
-			public float gain;
-			public float lacunarity;
+		[Header("Mesh Settings")]
+		[Range(batchSize, 65535)] public int complexity = 256;
 
-			[Header("Levels")]
-			public float seaLevel;
-			public float mainlandLevel;
-		}
-		public Settings settings;
+		[Header("Noise Generation")]
+		public float scale = 2.0f;
+		public uint octaves = 4;
+		public float gain = 0.5f;
+		public float lacunarity = 2.0f;
 
-		public RenderTexture result { get; private set; }
+		[Header("Levels")]
+		public float seaLevel = 0.2f;
+		public float mainlandLevel = 0.5f;
 
+		// Generation command buffer
 		private CommandBuffer commandBuffer = new CommandBuffer()
 		{
 			name = "MaskGenerator"
 		};
 
+		// Transform matrices
 		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1.0f));
 		private static readonly float4x4 matrixLook = float4x4.TRS(float3(0, 0, -1), quaternion.identity, float3(1));
 		private static readonly float4x4 matrixOrtho = float4x4.Ortho(2, 2, 0.01f, 2);
 
 		private const string shader = "Hidden/Utopia/World/MaskGenerator";
-		private readonly Material material;
+		private static Material material;
 		
 		private static readonly int mainlandProperty = Shader.PropertyToID("_Mainland");
 		private static readonly int oceanProperty = Shader.PropertyToID("_Ocean");
-
-		public Mask(int size, Settings settings)
-		{
-			this.settings = settings;
-
-			material = new Material(Shader.Find(shader));
-			result = new RenderTexture(size, size, 0, RenderTextureFormat.ARGBFloat)
-			{
-				filterMode = FilterMode.Trilinear
-			};
-		}
+		
+		public RenderTexture gpuResult { get; private set; }
 
 		public void Generate(ref Random random)
 		{
-			int verticesCount = settings.complexity;
+			int verticesCount = complexity;
 			verticesCount -= verticesCount % batchSize;
 
 			NativeArray<float> angles = new NativeArray<float>(verticesCount, Allocator.TempJob);
@@ -99,13 +88,12 @@ namespace Utopia.World
 				angles = angles,
 
 				seed = random.NextFloat(),
-				settings = settings
+				scale = this.scale,
+				octaves = this.octaves,
+				lacunarity = this.lacunarity,
+				gain = this.gain
 			};
 			JobHandle extentsHandle = extentsJob.Schedule(verticesCount, batchSize, anglesHandle);
-			
-			// Set material properties
-			material.SetFloat(oceanProperty, settings.seaLevel);
-			material.SetFloat(mainlandProperty, settings.mainlandLevel);
 			
 			// Find maximum and minimum extent for normalisation
 			NativeArray<float> extentsMinMax = new NativeArray<float>(2, Allocator.TempJob);
@@ -121,6 +109,21 @@ namespace Utopia.World
 			vertices[0] = float3.zero;
 
 			int smoothingAmount = verticesCount / 8;
+			
+			// Setup GPU
+			gpuResult = new RenderTexture(size, size, 0, RenderTextureFormat.RFloat)
+			{
+				useMipMap = false,
+				antiAliasing = 4
+			};
+			
+			// Setup material
+			if(material == null)
+			{
+				material = new Material(Shader.Find(shader));
+			}
+			material.SetFloat(oceanProperty, seaLevel);
+			material.SetFloat(mainlandProperty, mainlandLevel);
 			
 			extentsHandle.Complete();
 
@@ -145,7 +148,7 @@ namespace Utopia.World
 			// Schedule parallel across all cores - completely parallel job, though nothing can really run while it's running.
 			JobHandle vertexJobHandle = vertexJob.Schedule(verticesCount, batchSize, JobHandle.CombineDependencies(anglesHandle, smoothingJobHandle));
 
-			commandBuffer.SetRenderTarget(result);
+			commandBuffer.SetRenderTarget(gpuResult);
 			commandBuffer.ClearRenderTarget(false, true, Color.black);
 			commandBuffer.SetViewProjectionMatrices(matrixLook, matrixOrtho);
 
@@ -170,6 +173,12 @@ namespace Utopia.World
 
 			vertices.Dispose();
 			indices.Dispose();
+		}
+
+		
+		public void GetData()
+		{
+			
 		}
 
 		[BurstCompile(FloatPrecision.Medium, FloatMode.Default)]
@@ -204,7 +213,10 @@ namespace Utopia.World
 		private struct ExtentsJob : IJobParallelFor
 		{
 			public float seed;
-			public Settings settings;
+			public float scale;
+			public uint octaves;
+			public float lacunarity;
+			public float gain;
 
 			[ReadOnly]  public NativeArray<float> angles;
 			[WriteOnly] public NativeArray<float> extents;
@@ -212,9 +224,9 @@ namespace Utopia.World
 			public void Execute(int index)
 			{
 				float samplePoint = seed;
-				samplePoint += angles[index] * settings.scale;
+				samplePoint += angles[index] * scale;
 
-				float extent = Smooth1D.Fractal(samplePoint, settings.octaves, settings.lacunarity, settings.gain);
+				float extent = Smooth1D.Fractal(samplePoint, octaves, lacunarity, gain);
 				extents[index] = extent;
 			}
 		}

@@ -14,24 +14,14 @@ namespace Utopia.World
 		
 		void Start()
 		{
-			Mask mask = new Mask(1024, new Mask.Settings()
-			{
-				complexity = 16384,
-				gain = 0.5f,
-				lacunarity = 2.0f,
-				octaves = 4,
-				scale = 1.0f,
-				
-				seaLevel = 0.4f,
-				mainlandLevel = 0.5f
-			});
+			Mask mask = new Mask();
 			Random random = new Random(34724);
 			mask.Generate(ref random);
 
 			tex = new Texture2D(1024, 1024, TextureFormat.RGBAFloat, false);
 
-			Graphics.CopyTexture(mask.result, tex);
-			mask.result.DiscardContents();
+			Graphics.CopyTexture(mask.gpuResult, tex);
+			mask.gpuResult.DiscardContents();
 
 			GetComponent<SpriteRenderer>().sprite = Sprite.Create(tex, Rect.MinMaxRect(0, 0, 1024, 1024), Vector2.zero, 128);
 		}
