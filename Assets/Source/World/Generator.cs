@@ -21,6 +21,7 @@ namespace Utopia.World
 		// World
 		[Header("World")]
 		public int worldSize = 4096;
+		public int chunkSize = 256;
 
 		// Mask
 		[Header("Mask")]
@@ -70,25 +71,13 @@ namespace Utopia.World
 				int2 baseIndex = (int2) roundedPosition;
 				int2 offsetIndex = (int2) round(offsetDirection);
 				offsetIndex += baseIndex;
+				offsetIndex = clamp(offsetIndex, 0, chunkSize / maskDivisor);
 				
 				float baseSample = mask[baseIndex.x + baseIndex.y * chunkMaskSize];
 				float offsetSample = mask[offsetIndex.x + offsetIndex.y * chunkMaskSize];
 				float value = lerp(baseSample, offsetSample, offsetMagnitude);
 				chunkMask[index] = value;
 			}
-		}
-
-		internal SampleMaskJob CreateSampleMaskJob(in NativeArray<float> chunkMaskArray, int2 chunk, int chunkSize)
-		{
-			return new SampleMaskJob()
-			{
-				mask = maskData,
-				chunkMask = chunkMaskArray,
-				maskDivisor = maskDivisor,
-
-				chunk = chunk,
-				chunkSize = chunkSize
-			};
 		}
 
 		void Awake()
@@ -138,10 +127,10 @@ namespace Utopia.World
 					Debug.LogError("Error requesting island mask data from GPU.");
 					return;
 				}
-				
+
 				isMaskGenerated = true;
 				mask.gpuResult.DiscardContents();
-				
+
 				onComplete?.Invoke();
 			});
 		}
@@ -151,9 +140,12 @@ namespace Utopia.World
 			GameObject chunkObject = new GameObject();
 			chunkObject.transform.SetParent(transform);
 			chunkObject.name = $"Chunk ({position.x.ToString()}, {position.y.ToString()})";
-			
+
 			Chunk chunk = chunkObject.AddComponent<Chunk>();
 			chunk.generator = this;
+			chunk.index = position;
+			chunk.size = chunkSize;
+
 			chunk.Generate();
 		}
 	}

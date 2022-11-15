@@ -12,8 +12,8 @@ namespace Utopia.World
 	{
 		public Generator generator { get; internal set; }
 
-		public int2 index;
-		public int size = 256;
+		[HideInInspector] public int2 index;
+		[HideInInspector] public int size = 256;
 
 		private int sizeSq;
 		
@@ -33,17 +33,24 @@ namespace Utopia.World
 			
 			JobHandle heightmapJobHandle = heightmapJob.Schedule(sizeSq, 4);
 
-			NativeArray<float> mask = new NativeArray<float>(sizeSq, Allocator.TempJob);
-			Generator.SampleMaskJob sampleMaskJob = generator.CreateSampleMaskJob(mask, index, size);
+			NativeArray<float> mask = generator.maskData;
+			NativeArray<float> chunkMask = new NativeArray<float>(sizeSq, Allocator.TempJob);
+			Generator.SampleMaskJob sampleMaskJob = new Generator.SampleMaskJob()
+			{
+				mask = mask,
+				chunkMask = chunkMask,
+
+				chunk = index,
+				chunkSize = size,
+
+				maskDivisor = generator.maskDivisor
+			};
 			JobHandle sampleMaskJobHandle = sampleMaskJob.Schedule(sizeSq, 8);
 
-			sampleMaskJobHandle.Complete();
-			heightmapJobHandle.Complete();
-			
 			CombineMask combineMaskJob = new CombineMask()
 			{
 				heightmap = this.heightmap,
-				mask = mask
+				mask = chunkMask
 			};
 			JobHandle combineMaskJobHandle = combineMaskJob.Schedule
 			(
@@ -52,7 +59,20 @@ namespace Utopia.World
 			);
 			
 			combineMaskJobHandle.Complete();
-			mask.Dispose();
+			
+			for(int i = 0; i < sampleMaskJob.chunkMask.Length; i++)
+			{
+				if(sampleMaskJob.chunkMask[i] > 0.0f)
+				{
+					Debug.Log(sampleMaskJob.chunkMask[i].ToString());
+				}
+				else
+				{
+					Debug.Log("no");
+				}
+			}
+			
+			chunkMask.Dispose();
 			heightmap.Dispose();
 		}
 
@@ -64,7 +84,7 @@ namespace Utopia.World
 
 			public void Execute(int index)
 			{
-				//heightmap[index] *= mask[index];
+				heightmap[index] *= mask[index];
 			}
 		}
 	}
