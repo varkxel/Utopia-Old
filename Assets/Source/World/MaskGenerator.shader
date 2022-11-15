@@ -23,8 +23,6 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 
 			#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/RenderPass/CustomPass/CustomPassCommon.hlsl"
 
-			StructuredBuffer<float> angles;
-
 			CBUFFER_START(UnityPerMaterial)
 				float _Mainland;
 				float _Ocean;

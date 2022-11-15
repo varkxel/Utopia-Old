@@ -24,8 +24,8 @@ namespace Utopia.World
 	{
 		public const int batchSize = MathsUtil.MinMax_MaxBatch;
 
-		[SerializeField, HideInInspector]
-		private int size = 4096;
+		[HideInInspector]
+		public int size = 4096;
 
 		[Header("Mesh Settings")]
 		[Range(batchSize, 65535)] public int complexity = 256;
@@ -39,12 +39,6 @@ namespace Utopia.World
 		[Header("Levels")]
 		public float seaLevel = 0.2f;
 		public float mainlandLevel = 0.5f;
-
-		// Generation command buffer
-		private CommandBuffer commandBuffer = new CommandBuffer()
-		{
-			name = "MaskGenerator"
-		};
 
 		// Transform matrices
 		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1.0f));
@@ -61,6 +55,11 @@ namespace Utopia.World
 
 		public void Generate(ref Random random)
 		{
+			CommandBuffer commandBuffer = new CommandBuffer()
+			{
+				name = "MaskGenerator"
+			};
+			
 			int verticesCount = complexity;
 			verticesCount -= verticesCount % batchSize;
 
@@ -173,12 +172,8 @@ namespace Utopia.World
 
 			vertices.Dispose();
 			indices.Dispose();
-		}
-
-		
-		public void GetData()
-		{
 			
+			commandBuffer.Dispose();
 		}
 
 		[BurstCompile(FloatPrecision.Medium, FloatMode.Default)]
