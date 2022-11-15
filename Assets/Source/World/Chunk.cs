@@ -16,8 +16,6 @@ namespace Utopia.World
 		public int size = 256;
 
 		private int sizeSq;
-
-		public SpriteRenderer test;
 		
 		private NativeArray<double> heightmap;
 		
@@ -39,9 +37,12 @@ namespace Utopia.World
 			Generator.SampleMaskJob sampleMaskJob = generator.CreateSampleMaskJob(mask, index, size);
 			JobHandle sampleMaskJobHandle = sampleMaskJob.Schedule(sizeSq, 8);
 
+			sampleMaskJobHandle.Complete();
+			heightmapJobHandle.Complete();
+			
 			CombineMask combineMaskJob = new CombineMask()
 			{
-				heightmap = heightmap,
+				heightmap = this.heightmap,
 				mask = mask
 			};
 			JobHandle combineMaskJobHandle = combineMaskJob.Schedule
@@ -52,19 +53,7 @@ namespace Utopia.World
 			
 			combineMaskJobHandle.Complete();
 			mask.Dispose();
-
-			Texture2D testTex = new Texture2D(size, size, TextureFormat.RFloat, false);
-			NativeArray<float> heightmapFloat = new NativeArray<float>(heightmap.Length, Allocator.Temp);
-			for(int i = 0; i < heightmap.Length; i++)
-			{
-				heightmapFloat[i] = (float) heightmap[i];
-			}
-
 			heightmap.Dispose();
-			testTex.LoadRawTextureData(heightmapFloat);
-			heightmapFloat.Dispose();
-			test = GetComponentInParent<SpriteRenderer>();
-			test.sprite = Sprite.Create(testTex, new Rect(0, 0, size, size), Vector2.zero, size / 4.0f);
 		}
 
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]

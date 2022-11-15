@@ -1,6 +1,6 @@
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Profiling;
+using Unity.Mathematics;
 
 namespace Utopia.World
 {
@@ -22,16 +22,10 @@ namespace Utopia.World
 		void Update()
 		{
 			if(!generator.isMaskGenerated || done) return;
-
-			for(int i = 0; i < generator.maskData.Length; i++)
-			{
-				if(generator.maskData[i] > 0.0f) Debug.Log("Yes");
-				else Debug.Log("No");
-			}
 			
-			//Profiler.BeginSample("Chunk Gen");
-			//generator.GenerateChunk(new int2(0, 0));
-			//Profiler.EndSample();
+			Profiler.BeginSample("Chunk Gen");
+			generator.GenerateChunk(new int2(7, 5));
+			Profiler.EndSample();
 
 			done = true;
 		}

@@ -73,7 +73,8 @@ namespace Utopia.World
 				
 				float baseSample = mask[baseIndex.x + baseIndex.y * chunkMaskSize];
 				float offsetSample = mask[offsetIndex.x + offsetIndex.y * chunkMaskSize];
-				chunkMask[index] = lerp(baseSample, offsetSample, offsetMagnitude);
+				float value = lerp(baseSample, offsetSample, offsetMagnitude);
+				chunkMask[index] = value;
 			}
 		}
 
