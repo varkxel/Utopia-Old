@@ -1,11 +1,9 @@
+using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine;
 using static Unity.Mathematics.math;
-
-using static Utopia.Noise.Permutation;
 
 namespace Utopia.Noise
 {
@@ -37,13 +35,14 @@ namespace Utopia.Noise
 				Designed around fractal brownian motion from:
 				https://thebookofshaders.com/13/
 			*/
+
 			double2 position = origin;
 			position += double2(index) * (double) size;
 			// ReSharper disable once PossibleLossOfFraction
 			position += double2(i % size, i / size);
 
-			double value = 0.0f;
-			double amplitude = 0.5f;
+			double value = 0.0;
+			double amplitude = 0.5;
 			double frequency = scale;
 
 			for(int octave = 0; octave < octaves; octave++)
@@ -56,68 +55,46 @@ namespace Utopia.Noise
 			result[i] = value;
 		}
 
+		#region Noise Algorithm
+
+		/*
+			This noise algorithm is based on this implementation:
+			https://www.shadertoy.com/view/4dS3Wd
+		*/
+
+		[BurstCompile]
+		private static double Hash(double val)
+		{
+			val = frac(val * 0.011);
+			val *= val + 7.5;
+			val *= val + val;
+			return frac(val);
+		}
+
+		[BurstCompile]
+		private static double Hash(double2 val)
+		{
+			double3 val3D = frac(val.xyx * 0.13);
+			val3D += dot(val3D, val3D.yzx + 3.333);
+			return frac((val3D.x + val3D.y) * val3D.z);
+		}
+
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		public static double Sample(in double2 position)
 		{
-			/*
-				This method is based on this implementation:
-				https://github.com/ashima/webgl-noise/blob/master/src/noise2D.glsl
-			*/
+			double2 integer = floor(position);
+			double2 fraction = frac(position);
 
-			double C_x = (3.0 - sqrt(3.0)) / 6.0;
-			double C_y = 0.5 * (sqrt(3.0) - 1.0);
-			double C_z = -1.0 + 2.0 * C_x;
-			const double C_w = 1.0 / 41.0;
+			double a = Hash(integer);
+			double b = Hash(integer + double2(1, 0));
+			double c = Hash(integer + double2(0, 1));
+			double d = Hash(integer + double2(1, 1));
 
-			double4 C = double4(C_x, C_y, C_z, C_w);
-
-			// First corner
-			double2 i = floor(position + dot(position, C.yy));
-			double2 x0 = position - dot(i, C.xx);
-
-			// Other corners
-			/*
-				Branch-less implementation from:
-				https://www.arxiv-vanity.com/papers/1204.1461/
-			*/
-			double2 i1 = double2(0.0, 0.0);
-			i1.x = step(x0.y, x0.x);
-			i1.y = 1.0 - i1.x;
-
-			double4 x12 = x0.xyxy + C.xxzz;
-			x12.xy -= i1;
-
-			// Permutations
-			Mod289(ref i);
-			double3 p = i.y + double3(0.0, i1.y, 1.0);
-			Permute(ref p);
-			p += i.x + double3(0.0, i1.x, 1.0);
-			Permute(ref p);
-
-			double3 m = max(0.5 - double3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
-			m *= m;
-			m *= m;
-
-			// Gradients: 41 points uniformly over a line, mapped onto a diamond.
-			// The ring size 17 * 17 = 289 is close to a multiple of 41 (41 * 7 = 287)
-
-			double3 x = 2.0 * frac(p * C.www) - 1.0;
-			double3 h = abs(x) - 0.5;
-			double3 ox = floor(x + 0.5);
-			double3 a0 = x - ox;
-
-			// Normalise gradients implicitly by scaling m
-			m *= rsqrt(a0 * a0 + h * h);
-
-			// Compute final noise value at P
-			double3 g = double3
-			(
-				// X
-				a0.x * x0.x + h.x * x0.y,
-				// YZ
-				a0.yz * x12.xz + h.yz * x12.yw
-			);
-			return 130.0 * dot(m, g);
+			// 2D lerp between values with smoothstep
+			double2 u = fraction * fraction * (3.0 - 2.0 * fraction);
+			return lerp(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 		}
+		
+		#endregion
 	}
 }
