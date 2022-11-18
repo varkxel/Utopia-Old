@@ -1,9 +1,9 @@
+using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine;
-using UnityEngine.Events;
+
 using Utopia.Noise;
 
 namespace Utopia.World
@@ -11,13 +11,13 @@ namespace Utopia.World
 	public class Chunk : MonoBehaviour
 	{
 		public Generator generator { get; internal set; }
-
+		
 		[HideInInspector] public int2 index;
 		[HideInInspector] public int size = 256;
-
+		
 		private int sizeSq;
 		
-		private NativeArray<double> heightmap;
+		internal NativeArray<double> heightmap;
 		
 		public void Generate()
 		{
@@ -32,7 +32,7 @@ namespace Utopia.World
 			heightmapJob.result = heightmap;
 			
 			JobHandle heightmapJobHandle = heightmapJob.Schedule(sizeSq, 4);
-
+			
 			NativeArray<float> mask = generator.maskData;
 			NativeArray<float> chunkMask = new NativeArray<float>(sizeSq, Allocator.TempJob);
 			Generator.SampleMaskJob sampleMaskJob = new Generator.SampleMaskJob()
@@ -46,7 +46,7 @@ namespace Utopia.World
 				maskDivisor = generator.maskDivisor
 			};
 			JobHandle sampleMaskJobHandle = sampleMaskJob.Schedule(sizeSq, 8);
-
+			
 			CombineMask combineMaskJob = new CombineMask()
 			{
 				heightmap = this.heightmap,
@@ -60,28 +60,20 @@ namespace Utopia.World
 			
 			combineMaskJobHandle.Complete();
 			
-			for(int i = 0; i < sampleMaskJob.chunkMask.Length; i++)
-			{
-				if(sampleMaskJob.chunkMask[i] > 0.0f)
-				{
-					Debug.Log(sampleMaskJob.chunkMask[i].ToString());
-				}
-				else
-				{
-					Debug.Log("no");
-				}
-			}
-			
 			chunkMask.Dispose();
+		}
+		
+		private void OnDestroy()
+		{
 			heightmap.Dispose();
 		}
-
+		
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		private struct CombineMask : IJobParallelFor
 		{
 			public NativeArray<double> heightmap;
 			[ReadOnly] public NativeArray<float> mask;
-
+			
 			public void Execute(int index)
 			{
 				heightmap[index] *= mask[index];

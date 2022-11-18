@@ -33,14 +33,10 @@ namespace Utopia.World
 		public NativeArray<float> maskData;
 
 		// Heightmap
+		public SimplexFractal2D heightmap;
+		
 		[Header("Heightmap")]
-		public SimplexFractal2D heightmap = new SimplexFractal2D()
-		{
-			scale = 1.0,
-			octaves = 5,
-			gain = 0.5,
-			lacunarity = 2.0
-		};
+		public SimplexFractal2D.Settings heightmapSettings = SimplexFractal2D.Settings.Default();
 		public double heightmapPositionRange = pow(2, 24);
 
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
@@ -89,11 +85,7 @@ namespace Utopia.World
 			heightmap.origin = random.NextDouble2(-heightmapPositionRange, heightmapPositionRange);
 			
 			// Set the octave offsets
-			heightmap.octaveOffsets = new NativeArray<double2>(heightmap.octaves, Allocator.Persistent);
-			for(int octave = 0; octave < heightmap.octaves; octave++)
-			{
-				heightmap.octaveOffsets[octave] = random.NextDouble2(-heightmapPositionRange, heightmapPositionRange);
-			}
+			heightmap.GenerateOffsets(ref random);
 		}
 		
 		void OnDestroy()

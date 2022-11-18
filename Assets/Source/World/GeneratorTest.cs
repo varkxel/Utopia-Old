@@ -24,7 +24,7 @@ namespace Utopia.World
 			if(!generator.isMaskGenerated || done) return;
 			
 			Profiler.BeginSample("Chunk Gen");
-			generator.GenerateChunk(new int2(1, 1));
+			generator.GenerateChunk(new int2(1, 2));
 			Profiler.EndSample();
 
 			done = true;
