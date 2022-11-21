@@ -85,7 +85,7 @@ namespace Utopia.World
 			heightmap.origin = random.NextDouble2(-heightmapPositionRange, heightmapPositionRange);
 			
 			// Set the octave offsets
-			heightmap.GenerateOffsets(ref random);
+			heightmap.Initialise(ref random);
 		}
 		
 		void OnDestroy()

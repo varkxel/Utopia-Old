@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Biome Noise Map
   m_EditorClassIdentifier: 
   settings:
-    scale: 1
-    octaves: 5
+    scale: 0.05
+    octaves: 4
     gain: 0.5
-    lacunarity: 2
+    lacunarity: 17.27

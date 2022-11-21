@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -20,20 +21,39 @@ namespace Utopia.Noise
 			
 			public static Settings Default() => new Settings()
 			{
-				scale = 1.0,
+				scale = 64,
 				octaves = 5,
 				gain = 0.5,
 				lacunarity = 2.0
 			};
 		}
+		
+		[WriteOnly] public NativeArray<double> result;
+		
 		public Settings settings;
+		
+		public double2 origin;
+		public int2 index;
+		public int size;
+		
+		// Cached total amplitude
+		private const double initialAmplitude = 0.5;
+		private double amplitudeTotal;
 		
 		[ReadOnly] public NativeArray<double2> octaveOffsets;
 		
-		public void GenerateOffsets(ref Random random)
+		public void Initialise(ref Random random, double range = 100000.0)
 		{
-			float range = pow(2, 24);
+			// Calculate total amplitude for normalisation
+			double amplitude = initialAmplitude;
+			amplitudeTotal = amplitude;
+			for(int i = 0; i < settings.octaves - 1; i++)
+			{
+				amplitude *= settings.gain;
+				amplitudeTotal += amplitude;
+			}
 			
+			// Calculate the octave offsets
 			octaveOffsets = new NativeArray<double2>(settings.octaves, Allocator.Persistent);
 			for(int octave = 0; octave < settings.octaves; octave++)
 			{
@@ -41,18 +61,13 @@ namespace Utopia.Noise
 			}
 		}
 		
-		[WriteOnly] public NativeArray<double> result;
-		
-		public double2 origin;
-		public int2 index;
-		public int size;
-		
 		private static readonly double2x2 rotation = new double2x2
 		(
 			cos(0.5), sin(0.5),
 			-sin(0.5), cos(0.5)
 		);
 		
+		[SuppressMessage("ReSharper", "PossibleLossOfFraction")]
 		public void Execute(int i)
 		{
 			/*
@@ -62,20 +77,24 @@ namespace Utopia.Noise
 			
 			double2 position = origin;
 			position += double2(index) * (double) size;
-			// ReSharper disable once PossibleLossOfFraction
 			position += double2(i % size, i / size);
+			position /= settings.scale;
 			
 			double value = 0.0;
-			double amplitude = 1.0 - settings.gain;
-			double frequency = settings.scale;
+			double amplitude = initialAmplitude;
+			double frequency = 2.0;
 			
 			for(int octave = 0; octave < settings.octaves; octave++)
 			{
 				position = mul(rotation, position) * frequency + octaveOffsets[octave];
 				value += amplitude * Sample(position);
-				amplitude *= settings.gain;
 				frequency *= settings.lacunarity;
+				
+				amplitude *= settings.gain;
 			}
+			
+			value /= amplitudeTotal;
+			
 			result[i] = value;
 		}
 		

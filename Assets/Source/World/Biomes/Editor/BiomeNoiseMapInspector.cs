@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -30,6 +31,7 @@ namespace Utopia.World.Biomes
 			BiomeNoiseMap noiseMap = target as BiomeNoiseMap;
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
+			// Generate the noise map to display
 			NativeArray<double> result = new NativeArray<double>(resolution * resolution, Allocator.TempJob);
 			SimplexFractal2D generator = new SimplexFractal2D()
 			{
@@ -39,22 +41,28 @@ namespace Utopia.World.Biomes
 				origin = new double2(0.0, 0.0),
 				result = result
 			};
-			generator.GenerateOffsets(ref random);
+			generator.Initialise(ref random);
 			JobHandle generatorHandle = generator.Schedule(resolution * resolution, 4);
-
+			
+			// Allocate managed array while job is running
 			Color[] image = new Color[resolution * resolution];
 			
+			// Await job to finish
 			generatorHandle.Complete();
 			generator.octaveOffsets.Dispose();
 			
+			// Convert doubles to float for texture
 			for(int i = 0; i < result.Length; i++)
 			{
 				float value = (float) result[i];
 				image[i] = new Color(value, value, value, 1.0f);
 			}
+			
+			// Apply result
 			texture.SetPixels(image);
 			texture.Apply();
 			
+			// Free noisemap
 			result.Dispose();
 		}
 		
@@ -64,12 +72,12 @@ namespace Utopia.World.Biomes
 			
 			EditorGUILayout.Separator();
 			EditorGUILayout.LabelField("Preview", EditorStyles.boldLabel);
-
+			
 			if(GUILayout.Button("Update Preview"))
 			{
 				UpdateTexture();
 			}
-
+			
 			EditorGUI.DrawPreviewTexture(GUILayoutUtility.GetRect(512, 512), texture);
 		}
 	}
