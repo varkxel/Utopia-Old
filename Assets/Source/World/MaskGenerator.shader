@@ -52,6 +52,7 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 				float2 sample2D = 1.0 - abs(input.position2D.xy);
 				float sample = min(sample2D.x, sample2D.y);
 				
+				// Blur the mask to enforce ocean on the outside, and full height towards the centre
 				sample = lerp(0.0 - _Ocean, 1.0 + _Mainland, sample);
 				sample = clamp(sample, 0.0, 1.0);
 				
