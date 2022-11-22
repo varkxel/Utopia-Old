@@ -6,7 +6,7 @@ namespace Utopia.World.Biomes
 {
 	public abstract class SpawnRule : ScriptableObject
 	{
-		internal const string assetPath = "Utopia/Biomes/Spawn Rules/";
+		internal const string AssetPath = Generator.AssetPath + "Biomes/Spawn Rules/";
 		
 		public abstract void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map);
 	}

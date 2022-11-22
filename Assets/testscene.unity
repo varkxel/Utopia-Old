@@ -157,15 +157,7 @@ MonoBehaviour:
   seed: 1
   worldSize: 4096
   chunkSize: 1024
-  mask:
-    size: 4096
-    complexity: 256
-    scale: 2
-    octaves: 4
-    gain: 0.5
-    lacunarity: 2
-    seaLevel: 0.2
-    mainlandLevel: 0.5
+  mask: {fileID: 0}
   maskDivisor: 4
   heightmapSettings:
     scale: 1

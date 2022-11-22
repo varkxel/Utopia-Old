@@ -17,18 +17,16 @@ using Unity.Jobs;
 using Utopia.Noise;
 using MathsUtils;
 
-namespace Utopia.World
+namespace Utopia.World.Masks
 {
-	[BurstCompile, System.Serializable]
-	public class Mask
+	[CreateAssetMenu(menuName = Generator.AssetPath + "Mask", fileName = "Mask"), BurstCompile]
+	public class Mask : ScriptableObject
 	{
 		public const int batchSize = MathsUtil.MinMax_MaxBatch;
 
-		[HideInInspector]
-		public int size = 4096;
-
 		[Header("Mesh Settings")]
-		[Range(batchSize, 65535)] public int complexity = 256;
+		[Range(batchSize, 65535)]
+		public int complexity = 256;
 
 		[Header("Noise Generation")]
 		public float scale = 2.0f;
@@ -40,6 +38,10 @@ namespace Utopia.World
 		public float seaLevel = 0.2f;
 		public float mainlandLevel = 0.5f;
 
+		public RenderTexture gpuResult { get; private set; }
+		
+		#region Shader Variables/Parameters
+		
 		// Transform matrices
 		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1.0f));
 		private static readonly float4x4 matrixLook = float4x4.TRS(float3(0, 0, -1), quaternion.identity, float3(1));
@@ -51,9 +53,9 @@ namespace Utopia.World
 		private static readonly int mainlandProperty = Shader.PropertyToID("_Mainland");
 		private static readonly int oceanProperty = Shader.PropertyToID("_Ocean");
 		
-		public RenderTexture gpuResult { get; private set; }
+		#endregion
 
-		public void Generate(ref Random random)
+		public void Generate(ref Random random, int size)
 		{
 			CommandBuffer commandBuffer = new CommandBuffer()
 			{
@@ -174,123 +176,6 @@ namespace Utopia.World
 			indices.Dispose();
 			
 			commandBuffer.Dispose();
-		}
-
-		[BurstCompile(FloatPrecision.Medium, FloatMode.Default)]
-		private struct AnglesJob : IJob
-		{
-			public Random random;
-
-			public int angleCount;
-			[WriteOnly] public NativeArray<float> angles;
-
-			public void Execute()
-			{
-				const float start = -PI + EPSILON;
-				float baseOffset = (2.0f * PI) / (float) angleCount;
-
-				float currentAngle = start;
-				float lastOffset = 0.0f;
-
-				for(int i = 0; i < angleCount; i++)
-				{
-					angles[i] = currentAngle;
-
-					float offset = random.NextFloat(0.0f, baseOffset);
-					currentAngle += (baseOffset - lastOffset) + offset;
-
-					lastOffset = offset;
-				}
-			}
-		}
-
-		[BurstCompile(FloatPrecision.Medium, FloatMode.Fast)]
-		private struct ExtentsJob : IJobParallelFor
-		{
-			public float seed;
-			public float scale;
-			public uint octaves;
-			public float lacunarity;
-			public float gain;
-
-			[ReadOnly]  public NativeArray<float> angles;
-			[WriteOnly] public NativeArray<float> extents;
-
-			public void Execute(int index)
-			{
-				float samplePoint = seed;
-				samplePoint += angles[index] * scale;
-
-				float extent = Smooth1D.Fractal(samplePoint, octaves, lacunarity, gain);
-				extents[index] = extent;
-			}
-		}
-
-		[BurstCompile]
-		private struct SmoothJob : IJobParallelFor
-		{
-			[WriteOnly] public NativeSlice<float> array;
-
-			public float startSample;
-			public float endSample;
-
-			public int smoothSamples;
-
-			public void Execute(int i)
-			{
-				float position = (float) i / (float) smoothSamples;
-				array[i] = lerp(startSample, endSample, smoothstep(0, 1, position));
-			}
-		}
-
-		[BurstCompile]
-		private struct IndicesJob : IJob
-		{
-			public NativeArray<int> indices;
-
-			public void Execute()
-			{
-				int currentIndex = 1;
-
-				int indicesCount = indices.Length;
-				for(int i = 0; i < indicesCount; i++)
-				{
-					// Make every first index equal to zero.
-					int multiplier = (i % 3 != 0) ? 1 : 0;
-					indices[i] = currentIndex * multiplier;
-
-					// Increment the counter only on each 2nd index.
-					currentIndex += (i % 3 == 1) ? 1 : 0;
-				}
-
-				// Final triangle
-				indices[indicesCount - 3] = 0;
-				indices[indicesCount - 2] = indices[indicesCount - 4];
-				indices[indicesCount - 1] = indices[1];
-			}
-		}
-
-		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private struct VertexJob : IJobParallelFor
-		{
-			[ReadOnly]  public NativeArray<float> angles;
-
-			[ReadOnly]  public NativeArray<float> extents;
-			[ReadOnly]  public NativeArray<float> extentsMinMax;
-
-			[WriteOnly] public NativeSlice<float3> vertices;
-
-			public void Execute(int index)
-			{
-				float angle = angles[index];
-				float2 direction = float2(cos(angle), sin(angle));
-
-				float extent = extents[index];
-				extent = unlerp(extentsMinMax[0], extentsMinMax[1], extent);
-				direction *= extent;
-
-				vertices[index] = float3(direction, 0.0f);
-			}
 		}
 	}
 }

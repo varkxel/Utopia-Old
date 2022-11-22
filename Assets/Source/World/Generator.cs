@@ -1,20 +1,26 @@
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.Rendering;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
-using UnityEngine;
+
 using Unity.Mathematics;
-using UnityEngine.Events;
 using static Unity.Mathematics.math;
-using UnityEngine.Rendering;
-using Utopia.Noise;
 using float2 = Unity.Mathematics.float2;
 using Random = Unity.Mathematics.Random;
+
+using Utopia.Noise;
+using Utopia.World.Masks;
 
 namespace Utopia.World
 {
 	[BurstCompile]
 	public class Generator : MonoBehaviour
 	{
+		public const string AssetPath = "Utopia/Generator/";
+		
 		[Range(1, uint.MaxValue)] public uint seed = 1;
 		[System.NonSerialized] public Random random;
 
@@ -25,7 +31,7 @@ namespace Utopia.World
 
 		// Mask
 		[Header("Mask")]
-		public Mask mask = new Mask();
+		public Mask mask;
 		public int maskDivisor = 4;
 
 		public bool isMaskGenerated { get; private set; } = false;
@@ -108,9 +114,7 @@ namespace Utopia.World
 			ResetMask();
 
 			maskSize = worldSize / maskDivisor;
-			mask.size = maskSize;
-
-			mask.Generate(ref random);
+			mask.Generate(ref random, maskSize);
 			maskData = new NativeArray<float>(maskSize * maskSize, Allocator.Persistent);
 			AsyncGPUReadback.RequestIntoNativeArray(ref maskData, mask.gpuResult, 0, request =>
 			{

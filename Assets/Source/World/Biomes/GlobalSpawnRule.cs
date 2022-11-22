@@ -10,7 +10,7 @@ namespace Utopia.World.Biomes
 	/// A spawn rule that completely covers the map, independent of what is there.
 	/// Use this for oceans.
 	/// </summary>
-	[CreateAssetMenu(menuName = assetPath + "Global Rule", order = 0)]
+	[CreateAssetMenu(menuName = AssetPath + "Global Rule", order = 0)]
 	public class GlobalSpawnRule : SpawnRule
 	{
 		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
