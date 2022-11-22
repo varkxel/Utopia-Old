@@ -172,7 +172,7 @@ MonoBehaviour:
     octaves: 5
     gain: 0.5
     lacunarity: 2
-  heightmapPositionRange: 16777216
+  heightmapPositionRange: 100000
 --- !u!4 &355529539
 Transform:
   m_ObjectHideFlags: 0
