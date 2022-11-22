@@ -12,7 +12,7 @@ using Utopia.Noise;
 namespace Utopia.World
 {
 	[CustomEditor(typeof(NoiseMap))]
-	internal sealed class NoiseMapInspector : Editor
+	internal class NoiseMapInspector : Editor
 	{
 		private Random random;
 		
@@ -23,7 +23,7 @@ namespace Utopia.World
 		{
 			random.InitState();
 			
-			texture = new Texture2D(resolution, resolution, DefaultFormat.LDR, TextureCreationFlags.DontUploadUponCreate);
+			texture = new Texture2D(resolution, resolution, DefaultFormat.HDR, TextureCreationFlags.DontUploadUponCreate);
 			UpdateTexture();
 		}
 		
@@ -79,7 +79,7 @@ namespace Utopia.World
 				UpdateTexture();
 			}
 			
-			EditorGUI.DrawPreviewTexture(GUILayoutUtility.GetRect(512, 512), texture);
+			EditorGUI.DrawPreviewTexture(GUILayoutUtility.GetAspectRect(1), texture);
 		}
 	}
 }

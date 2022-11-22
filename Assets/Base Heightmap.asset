@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aa40fd1d75074ff49bb079a3e14d8e31, type: 3}
-  m_Name: Biome Noise Map
+  m_Name: Base Heightmap
   m_EditorClassIdentifier: 
   settings:
-    scale: 16
-    octaves: 5
-    gain: 0.5
-    lacunarity: 2
+    scale: 64
+    octaves: 6
+    gain: 0.41
+    lacunarity: 1.2

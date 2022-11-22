@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 
 using Unity.Burst;
@@ -6,10 +7,10 @@ using Unity.Collections;
 using Unity.Jobs;
 
 using static Unity.Mathematics.math;
-using Random = Unity.Mathematics.Random;
 using float3 = Unity.Mathematics.float3;
 using float4x4 = Unity.Mathematics.float4x4;
 using quaternion = Unity.Mathematics.quaternion;
+using Random = Unity.Mathematics.Random;
 
 using MathsUtils;
 
@@ -21,7 +22,7 @@ namespace Utopia.World.Masks
 		public const int batchSize = MathsUtil.MinMax_MaxBatch;
 		
 		[Header("Mesh Settings")]
-		[Range(batchSize, 65535)]
+		[Range(batchSize, 65536)]
 		public int complexity = 256;
 		
 		[Header("Noise Generation")]
@@ -40,7 +41,7 @@ namespace Utopia.World.Masks
 		#region Shader Variables/Parameters
 		
 		// Transform matrices
-		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1.0f));
+		private static readonly float4x4 matrixTransform = float4x4.TRS(float3(0), quaternion.identity, float3(1));
 		private static readonly float4x4 matrixLook = float4x4.TRS(float3(0, 0, -1), quaternion.identity, float3(1));
 		private static readonly float4x4 matrixOrtho = float4x4.Ortho(2, 2, 0.01f, 2);
 
@@ -175,7 +176,7 @@ namespace Utopia.World.Masks
 			commandBuffer.Dispose();
 		}
 		
-		public void GetResult(ref NativeArray<float> result)
+		public void GetResult(ref NativeArray<float> result, UnityAction onCompleted = null)
 		{
 			AsyncGPUReadback.RequestIntoNativeArray(ref result, gpuResult, 0, request =>
 			{
@@ -184,9 +185,10 @@ namespace Utopia.World.Masks
 					Debug.LogError("Error requesting island mask data from GPU.");
 					return;
 				}
-				
 				generated = true;
 				gpuResult.DiscardContents();
+				
+				onCompleted?.Invoke();
 			});
 		}
 	}

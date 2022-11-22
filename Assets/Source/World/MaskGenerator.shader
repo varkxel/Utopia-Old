@@ -21,7 +21,7 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 			#pragma vertex Vertex
 			#pragma fragment Fragment
 			
-			#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/RenderPass/CustomPass/CustomPassCommon.hlsl"
+			#include "UnityCG.cginc"
 			
 			CBUFFER_START(UnityPerMaterial)
 				float _Mainland;
@@ -30,16 +30,13 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 			
 			struct FragmentInfo
 			{
-				float4 position_HCS : SV_POSITION;
+				float4 position_Clip : SV_POSITION;
 				float2 position2D : TEXCOORD0;
 			};
 			
 			void Vertex(float3 position_OS : POSITION, out FragmentInfo output)
 			{
-				float3 position_WS = TransformObjectToWorld(position_OS);
-				float4 position_HCS = TransformWorldToHClip(position_WS);
-				
-				output.position_HCS = position_HCS;
+				output.position_Clip = UnityObjectToClipPos(position_OS);
 				output.position2D = position_OS.xy;
 			}
 			

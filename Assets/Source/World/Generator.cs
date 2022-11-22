@@ -1,10 +1,7 @@
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.Rendering;
 
 using Unity.Burst;
 using Unity.Collections;
-
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
