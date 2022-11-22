@@ -2,19 +2,15 @@
 using UnityEngine.Rendering;
 
 using Unity.Burst;
-
 using Unity.Collections;
+using Unity.Jobs;
 
-using Unity.Mathematics;
 using static Unity.Mathematics.math;
 using Random = Unity.Mathematics.Random;
 using float3 = Unity.Mathematics.float3;
 using float4x4 = Unity.Mathematics.float4x4;
 using quaternion = Unity.Mathematics.quaternion;
 
-using Unity.Jobs;
-
-using Utopia.Noise;
 using MathsUtils;
 
 namespace Utopia.World.Masks
@@ -23,22 +19,23 @@ namespace Utopia.World.Masks
 	public class Mask : ScriptableObject
 	{
 		public const int batchSize = MathsUtil.MinMax_MaxBatch;
-
+		
 		[Header("Mesh Settings")]
 		[Range(batchSize, 65535)]
 		public int complexity = 256;
-
+		
 		[Header("Noise Generation")]
 		public float scale = 2.0f;
 		public uint octaves = 4;
 		public float gain = 0.5f;
 		public float lacunarity = 2.0f;
-
+		
 		[Header("Levels")]
 		public float seaLevel = 0.2f;
 		public float mainlandLevel = 0.5f;
-
+		
 		public RenderTexture gpuResult { get; private set; }
+		public bool generated { get; private set; } = false;
 		
 		#region Shader Variables/Parameters
 		
@@ -54,7 +51,7 @@ namespace Utopia.World.Masks
 		private static readonly int oceanProperty = Shader.PropertyToID("_Ocean");
 		
 		#endregion
-
+		
 		public void Generate(ref Random random, int size)
 		{
 			CommandBuffer commandBuffer = new CommandBuffer()
@@ -176,6 +173,21 @@ namespace Utopia.World.Masks
 			indices.Dispose();
 			
 			commandBuffer.Dispose();
+		}
+		
+		public void GetResult(ref NativeArray<float> result)
+		{
+			AsyncGPUReadback.RequestIntoNativeArray(ref result, gpuResult, 0, request =>
+			{
+				if(request.hasError)
+				{
+					Debug.LogError("Error requesting island mask data from GPU.");
+					return;
+				}
+				
+				generated = true;
+				gpuResult.DiscardContents();
+			});
 		}
 	}
 }

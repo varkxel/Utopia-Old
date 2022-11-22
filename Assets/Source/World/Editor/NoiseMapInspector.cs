@@ -1,17 +1,18 @@
-using System;
+using UnityEngine;
+using UnityEngine.Experimental.Rendering;
+using UnityEditor;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.Experimental.Rendering;
-using Utopia.Noise;
 using Random = Unity.Mathematics.Random;
 
-namespace Utopia.World.Biomes
+using Utopia.Noise;
+
+namespace Utopia.World
 {
-	[CustomEditor(typeof(BiomeNoiseMap))]
-	internal sealed class BiomeNoiseMapInspector : Editor
+	[CustomEditor(typeof(NoiseMap))]
+	internal sealed class NoiseMapInspector : Editor
 	{
 		private Random random;
 		
@@ -28,7 +29,7 @@ namespace Utopia.World.Biomes
 		
 		public void UpdateTexture()
 		{
-			BiomeNoiseMap noiseMap = target as BiomeNoiseMap;
+			NoiseMap noiseMap = target as NoiseMap;
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
 			// Generate the noise map to display
@@ -38,7 +39,7 @@ namespace Utopia.World.Biomes
 				settings = noiseMap.settings,
 				index = new int2(0, 0),
 				size = resolution,
-				origin = new double2(0.0, 0.0),
+				origin = random.NextDouble2(-32768, 32768),
 				result = result
 			};
 			generator.Initialise(ref random);

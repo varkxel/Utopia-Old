@@ -3,11 +3,13 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 using static Unity.Mathematics.math;
+using Random = Unity.Mathematics.Random;
 
 namespace Utopia.Noise
 {
-	[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+	[BurstCompile(FloatPrecision.High, FloatMode.Fast)]
 	public struct SimplexFractal2D : IJobParallelFor
 	{
 		[System.Serializable]
@@ -42,7 +44,7 @@ namespace Utopia.Noise
 		
 		[ReadOnly] public NativeArray<double2> octaveOffsets;
 		
-		public void Initialise(ref Random random, double range = 100000.0)
+		public void Initialise(ref Random random, double range = 32768.0)
 		{
 			// Calculate total amplitude for normalisation
 			double amplitude = initialAmplitude;
@@ -70,29 +72,31 @@ namespace Utopia.Noise
 		[SuppressMessage("ReSharper", "PossibleLossOfFraction")]
 		public void Execute(int i)
 		{
-			/*
-				Designed around fractal brownian motion from:
-				https://thebookofshaders.com/13/
-			*/
-			
+			// Get sample position
 			double2 position = origin;
 			position += double2(index) * (double) size;
 			position += double2(i % size, i / size);
 			position /= settings.scale;
 			
+			// Fractal noise algorithm
 			double value = 0.0;
 			double amplitude = initialAmplitude;
 			double frequency = 2.0;
 			
 			for(int octave = 0; octave < settings.octaves; octave++)
 			{
+				// Permute the position and use the given offset
 				position = mul(rotation, position) * frequency + octaveOffsets[octave];
-				value += amplitude * Sample(position);
-				frequency *= settings.lacunarity;
 				
+				// Sample octave value
+				value += amplitude * Sample(position);
+				
+				// Update modifiers
+				frequency *= settings.lacunarity;
 				amplitude *= settings.gain;
 			}
 			
+			// Normalise
 			value /= amplitudeTotal;
 			
 			result[i] = value;
@@ -122,7 +126,7 @@ namespace Utopia.Noise
 			return frac((val3D.x + val3D.y) * val3D.z);
 		}
 		
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		[BurstCompile(FloatPrecision.High, FloatMode.Fast)]
 		public static double Sample(in double2 position)
 		{
 			double2 integer = floor(position);

@@ -5,6 +5,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using Utopia.Noise;
+using Utopia.World.Masks;
 
 namespace Utopia.World
 {
@@ -35,7 +36,7 @@ namespace Utopia.World
 			
 			NativeArray<float> mask = generator.maskData;
 			NativeArray<float> chunkMask = new NativeArray<float>(sizeSq, Allocator.TempJob);
-			Generator.SampleMaskJob sampleMaskJob = new Generator.SampleMaskJob()
+			MaskSampler sampleMaskJob = new MaskSampler()
 			{
 				mask = mask,
 				chunkMask = chunkMask,
@@ -43,6 +44,7 @@ namespace Utopia.World
 				chunk = index,
 				chunkSize = size,
 
+				maskSize = generator.maskSize,
 				maskDivisor = generator.maskDivisor
 			};
 			JobHandle sampleMaskJobHandle = sampleMaskJob.Schedule(sizeSq, 8);
