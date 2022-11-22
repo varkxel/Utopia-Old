@@ -11,7 +11,7 @@ using Utopia.Noise;
 
 namespace Utopia.World
 {
-	[CustomEditor(typeof(NoiseMap))]
+	[CustomEditor(typeof(NoiseMap2D))]
 	internal class NoiseMapInspector : Editor
 	{
 		private Random random;
@@ -29,7 +29,7 @@ namespace Utopia.World
 		
 		public void UpdateTexture()
 		{
-			NoiseMap noiseMap = target as NoiseMap;
+			NoiseMap2D noiseMap = target as NoiseMap2D;
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
 			// Generate the noise map to display
@@ -39,7 +39,6 @@ namespace Utopia.World
 				settings = noiseMap.settings,
 				index = new int2(0, 0),
 				size = resolution,
-				origin = random.NextDouble2(-32768, 32768),
 				result = result
 			};
 			generator.Initialise(ref random);

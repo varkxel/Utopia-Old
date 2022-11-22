@@ -28,11 +28,14 @@ namespace Utopia.World.Biomes
 		[BurstCompile]
 		private struct WriteJob : IJobParallelFor
 		{
+			// Current layer
+			public int layer;
+			
+			// Chunk position info
 			public int2 chunk;
 			public int chunkSize;
 			
-			public int layer;
-			
+			// Output
 			[WriteOnly] public NativeArray<int> map;
 			
 			public void Execute(int index)

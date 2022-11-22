@@ -36,9 +36,11 @@ namespace Utopia.World.Masks
 			mask.GetResult(ref result, UpdateTexture_OnMaskGenerated);
 		}
 		
-		private void UpdateTexture_OnMaskGenerated() {
+		private void UpdateTexture_OnMaskGenerated()
+		{
 			Color[] image = new Color[resolution * resolution];
-			for (int i = 0; i < result.Length; i++) {
+			for (int i = 0; i < result.Length; i++)
+			{
 				float val = result[i];
 				image[i] = new Color(val, val, val, 1.0f);
 			}

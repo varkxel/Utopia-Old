@@ -1,11 +1,11 @@
-using System.Diagnostics.CodeAnalysis;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine;
 using static Unity.Mathematics.math;
 using Random = Unity.Mathematics.Random;
+
+using System.Diagnostics.CodeAnalysis;
 
 namespace Utopia.Noise
 {
@@ -34,7 +34,6 @@ namespace Utopia.Noise
 		
 		public Settings settings;
 		
-		public double2 origin;
 		public int2 index;
 		public int size;
 		
@@ -73,7 +72,7 @@ namespace Utopia.Noise
 		public void Execute(int i)
 		{
 			// Get sample position
-			double2 position = origin;
+			double2 position = double2(0.0);
 			position += double2(index) * (double) size;
 			position += double2(i % size, i / size);
 			position /= settings.scale;

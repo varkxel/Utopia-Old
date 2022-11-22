@@ -44,10 +44,7 @@ namespace Utopia.World
 			// Initialise random
 			random = new Random(seed);
 			
-			// Randomize the heightmap's origin
-			heightmap.origin = random.NextDouble2(-heightmapPositionRange, heightmapPositionRange);
-			
-			// Set the octave offsets
+			// Set the octave positions
 			heightmap.Initialise(ref random);
 		}
 		
