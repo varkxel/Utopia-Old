@@ -5,7 +5,6 @@ using Unity.Collections;
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
-using Utopia.Noise;
 using Utopia.World.Masks;
 
 namespace Utopia.World
@@ -14,6 +13,28 @@ namespace Utopia.World
 	public class Generator : MonoBehaviour
 	{
 		public const string AssetPath = "Utopia/Generator/";
+		
+		#region Singleton
+		
+		public static Generator instance = null;
+		
+		private void AwakeSingleton()
+		{
+			if(instance != null)
+			{
+				Debug.LogError
+				(
+					$"Multiple {nameof(Generator)} instances exist in the scene!\n" +
+					$"Instance \"{instance.name}\" already exists, destroying instance \"{name}\".",
+					gameObject
+				);
+				Destroy(gameObject);
+				return;
+			}
+			instance = this;
+		}
+		
+		#endregion
 		
 		[Range(1, uint.MaxValue)] public uint seed = 1;
 		[System.NonSerialized] public Random random;
@@ -33,24 +54,23 @@ namespace Utopia.World
 		public NativeArray<float> maskData;
 		
 		// Heightmap
-		public SimplexFractal2D heightmap;
-		
 		[Header("Heightmap")]
-		public SimplexFractal2D.Settings heightmapSettings = SimplexFractal2D.Settings.Default();
-		public double heightmapPositionRange = 100000.0;
+		public NoiseMap2D heightmap;
 		
 		void Awake()
 		{
+			AwakeSingleton();
+			
 			// Initialise random
 			random = new Random(seed);
 			
 			// Set the octave positions
-			heightmap.Initialise(ref random);
+			heightmap.GenerateOffsets(ref random);
 		}
 		
 		void OnDestroy()
 		{
-			heightmap.octaveOffsets.Dispose();
+			heightmap.OnDestroy();
 			DestroyMask();
 		}
 		

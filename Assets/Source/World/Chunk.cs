@@ -16,19 +16,15 @@ namespace Utopia.World
 		[HideInInspector] public int2 index;
 		[HideInInspector] public int size = 256;
 		
-		private int sizeSq;
-		
 		internal NativeArray<double> heightmap;
 		
 		public void Generate()
 		{
 			// Calculate sizeSq
-			sizeSq = size * size;
+			int sizeSq = size * size;
 			
-			SimplexFractal2D heightmapJob = generator.heightmap;
-			heightmapJob.size = size;
-			heightmapJob.index = index;
-			
+			// Create heightmap job
+			generator.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapJob);
 			heightmap = new NativeArray<double>(sizeSq, Allocator.TempJob);
 			heightmapJob.result = heightmap;
 			

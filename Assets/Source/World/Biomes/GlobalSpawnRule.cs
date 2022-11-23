@@ -22,7 +22,7 @@ namespace Utopia.World.Biomes
 				layer = layer,
 				map = map
 			};
-			writeJob.Schedule(chunkSize * chunkSize, 64).Complete();
+			writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize)).Complete();
 		}
 		
 		[BurstCompile]

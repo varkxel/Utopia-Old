@@ -53,9 +53,11 @@ namespace Utopia.Noise
 				amplitude *= settings.gain;
 				amplitudeTotal += amplitude;
 			}
-			
-			// Calculate the octave offsets
-			octaveOffsets = new NativeArray<double2>(settings.octaves, Allocator.Persistent);
+		}
+		
+		public void GenerateOffsets(ref Random random, Allocator allocator, double range = 60000.0)
+		{
+			octaveOffsets = new NativeArray<double2>(settings.octaves, allocator);
 			for(int octave = 0; octave < settings.octaves; octave++)
 			{
 				octaveOffsets[octave] = random.NextDouble2(-range, range);

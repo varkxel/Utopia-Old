@@ -3,6 +3,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+
 using Utopia.Noise;
 using ThresholdDelegate = Utopia.World.Biomes.ThresholdOperationExtensions.ThresholdDelegate;
 
@@ -16,14 +17,16 @@ namespace Utopia.World.Biomes
 		
 		[Header("Threshold")]
 		[Range(0.0f, 1.0f)] public double threshold = 0.5f;
-		
 		public ThresholdOperation thresholdOperation = ThresholdOperation.GreaterEqual;
 		
-		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map) {
-			SimplexFractal2D noiseJob = new SimplexFractal2D()
-			{
-				
-			};
+		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+		{
+			int chunkLength = chunkSize * chunkSize;
+			
+			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);
+			NativeArray<double> noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
+			noiseJob.result = noiseMap;
+			JobHandle noiseJobHandle = noiseJob.Schedule(chunkLength, 4);
 			
 			WriteJob writeJob = new WriteJob()
 			{
@@ -34,8 +37,10 @@ namespace Utopia.World.Biomes
 				threshold = this.threshold,
 				thresholdOperation = thresholdOperation.GetOperation(),
 				
-				
+				map = map,
+				noise = noiseMap
 			};
+			writeJob.Schedule(chunkLength, math.min(64, chunkSize), noiseJobHandle).Complete();
 		}
 		
 		[BurstCompile]
@@ -47,11 +52,11 @@ namespace Utopia.World.Biomes
 			// Chunk position info
 			public int2 chunk;
 			public int chunkSize;
-
+			
 			// Noise map
 			public double threshold;
 			public FunctionPointer<ThresholdDelegate> thresholdOperation;
-			[ReadOnly] public NativeArray<float> noise;
+			[ReadOnly] public NativeArray<double> noise;
 			
 			// Output
 			[WriteOnly] public NativeArray<int> map;
@@ -63,8 +68,12 @@ namespace Utopia.World.Biomes
 				
 				int index = position.x + position.y * chunkSize;
 				
-				float noiseVal = noise[index];
-				if(thresholdOperation.Invoke(noiseVal, threshold)) map[index] = layer;
+				double noiseVal = noise[index];
+				if(thresholdOperation.Invoke(noiseVal, threshold))
+				{
+					// Set map to current layer if selected operation is true
+					map[index] = layer;
+				}
 			}
 		}
 	}
