@@ -1,6 +1,6 @@
+using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Utopia.World.Biomes
 {

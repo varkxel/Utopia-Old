@@ -5,7 +5,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using Utopia.Noise;
-using ThresholdDelegate = Utopia.World.Biomes.ThresholdOperationExtensions.ThresholdDelegate;
 
 namespace Utopia.World.Biomes
 {
@@ -55,7 +54,7 @@ namespace Utopia.World.Biomes
 			
 			// Noise map
 			public double threshold;
-			public FunctionPointer<ThresholdDelegate> thresholdOperation;
+			public FunctionPointer<ThresholdOperations.Delegate> thresholdOperation;
 			[ReadOnly] public NativeArray<double> noise;
 			
 			// Output
