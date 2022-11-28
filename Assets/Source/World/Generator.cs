@@ -12,7 +12,7 @@ namespace Utopia.World
 	[BurstCompile]
 	public class Generator : MonoBehaviour
 	{
-		public const string AssetPath = "Utopia/Generator/";
+		internal const string AssetPath = "Utopia/Generator/";
 		
 		#region Singleton
 		
@@ -57,7 +57,7 @@ namespace Utopia.World
 		[Header("Heightmap")]
 		public NoiseMap2D heightmap;
 		
-		void Awake()
+		private void Awake()
 		{
 			AwakeSingleton();
 			
@@ -68,7 +68,7 @@ namespace Utopia.World
 			heightmap.GenerateOffsets(ref random);
 		}
 		
-		void OnDestroy()
+		private void OnDestroy()
 		{
 			heightmap.OnDestroy();
 			DestroyMask();

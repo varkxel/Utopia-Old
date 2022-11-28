@@ -8,47 +8,59 @@ namespace Utopia.World.Biomes {
 		Greater, Less,
 		GreaterEqual, LessEqual
 	}
-
-	public static class ThresholdOperationExtensions
+	
+	public static class ThresholdOperations
 	{
-		public delegate bool ThresholdDelegate(double val, double threshold);
+		public delegate bool Delegate(double val, double threshold);
 		
-		public static FunctionPointer<ThresholdDelegate> GetOperation(this ThresholdOperation op) {
-			return op switch {
+		/// <summary>
+		/// Gets the function pointer for the threshold operation.
+		/// </summary>
+		/// <param name="operation">ThresholdOperation Enum</param>
+		/// <returns>Function pointer of the operation.</returns>
+		/// <exception cref="ArgumentOutOfRangeException">
+		/// Thrown if there is no function for the given operation.
+		/// </exception>
+		public static FunctionPointer<Delegate> GetOperation(this ThresholdOperation operation) {
+			return operation switch {
 				ThresholdOperation.Greater => GreaterPtr,
 				ThresholdOperation.GreaterEqual => GreaterEqualPtr,
 				ThresholdOperation.Less => LessPtr,
 				ThresholdOperation.LessEqual => LessEqualPtr,
 				_ => throw new ArgumentOutOfRangeException
 				(
-					nameof(op), op,
-					$"Unimplemented operation \"{op}\"."
+					nameof(operation), operation,
+					$"Unimplemented operation \"{operation}\"."
 				)
 			};
 		}
 		
-		[BurstCompile, MonoPInvokeCallback(typeof(ThresholdDelegate))]
+		#region Function Pointers
+		
+		[BurstCompile, MonoPInvokeCallback(typeof(Delegate))]
 		private static bool Greater(double val, double threshold) => val > threshold;
 		
-		private static readonly FunctionPointer<ThresholdDelegate> GreaterPtr
-			= BurstCompiler.CompileFunctionPointer<ThresholdDelegate>(Greater);
+		private static readonly FunctionPointer<Delegate> GreaterPtr
+			= BurstCompiler.CompileFunctionPointer<Delegate>(Greater);
 		
-		[BurstCompile, MonoPInvokeCallback(typeof(ThresholdDelegate))]
+		[BurstCompile, MonoPInvokeCallback(typeof(Delegate))]
 		private static bool Less(double val, double threshold) => val < threshold;
 		
-		private static readonly FunctionPointer<ThresholdDelegate> LessPtr
-			= BurstCompiler.CompileFunctionPointer<ThresholdDelegate>(Less);
+		private static readonly FunctionPointer<Delegate> LessPtr
+			= BurstCompiler.CompileFunctionPointer<Delegate>(Less);
 		
-		[BurstCompile, MonoPInvokeCallback(typeof(ThresholdDelegate))]
+		[BurstCompile, MonoPInvokeCallback(typeof(Delegate))]
 		private static bool GreaterEqual(double val, double threshold) => val >= threshold;
 		
-		private static readonly FunctionPointer<ThresholdDelegate> GreaterEqualPtr
-			= BurstCompiler.CompileFunctionPointer<ThresholdDelegate>(GreaterEqual);
+		private static readonly FunctionPointer<Delegate> GreaterEqualPtr
+			= BurstCompiler.CompileFunctionPointer<Delegate>(GreaterEqual);
 		
-		[BurstCompile, MonoPInvokeCallback(typeof(ThresholdDelegate))]
+		[BurstCompile, MonoPInvokeCallback(typeof(Delegate))]
 		private static bool LessEqual(double val, double threshold) => val <= threshold;
 		
-		private static readonly FunctionPointer<ThresholdDelegate> LessEqualPtr
-			= BurstCompiler.CompileFunctionPointer<ThresholdDelegate>(LessEqual);
+		private static readonly FunctionPointer<Delegate> LessEqualPtr
+			= BurstCompiler.CompileFunctionPointer<Delegate>(LessEqual);
+		
+		#endregion
 	}
 }
