@@ -18,6 +18,7 @@ namespace Utopia.World
 		
 		internal NativeArray<double> heightmap;
 		
+		// TODO implement
 		public void Generate()
 		{
 			// Calculate sizeSq

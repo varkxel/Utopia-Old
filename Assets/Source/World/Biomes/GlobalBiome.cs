@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = Unity.Mathematics.Random;
 
 namespace Utopia.World.Biomes
 {
@@ -11,9 +12,9 @@ namespace Utopia.World.Biomes
 	/// Use this for oceans.
 	/// </summary>
 	[CreateAssetMenu(menuName = AssetPath + "Global Rule", order = 0)]
-	public class GlobalSpawnRule : SpawnRule
+	public class GlobalBiome : Biome
 	{
-		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+		public override void Spawn(ref Random random, in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
 		{
 			WriteJob writeJob = new WriteJob()
 			{
