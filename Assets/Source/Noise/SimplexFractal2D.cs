@@ -3,199 +3,153 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
+using Random = Unity.Mathematics.Random;
 
-using static Utopia.Noise.Permutation;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Utopia.Noise
 {
-	[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+	[BurstCompile(FloatPrecision.High, FloatMode.Fast)]
 	public struct SimplexFractal2D : IJobParallelFor
 	{
-		[ReadOnly]  public double4 bounds;
-		
-		[WriteOnly] public NativeArray<double> map;
-		[ReadOnly]  public int2 dimensions;
-		
-		[ReadOnly]  public double noiseScale;
-		
-		[ReadOnly]  public int octaves;
-		[ReadOnly]  public double amplitudeModifier;
-		[ReadOnly]  public double scaleModifier;
-		
-		[ReadOnly]  public NativeArray<double2> offsets;
-		
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
-		public static int Size
-		(
-			in double2 origin, in double2 size, double scale,
-			out int2 dimensions, out double4 bounds
-		)
+		[System.Serializable]
+		public struct Settings
 		{
-			bounds = double4(origin - size, origin + size);
-			return Size(bounds, scale, out dimensions);
+			public double scale;
+			
+			public int octaves;
+			public double gain;
+			public double lacunarity;
+			
+			public static Settings Default() => new Settings()
+			{
+				scale = 64,
+				octaves = 5,
+				gain = 0.5,
+				lacunarity = 2.0
+			};
 		}
 		
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
-		public static int Size(in double4 bounds, double scale, out int2 dimensions)
+		[WriteOnly] public NativeArray<double> result;
+		
+		public Settings settings;
+		
+		public int2 index;
+		public int size;
+		
+		// Cached total amplitude
+		private const double initialAmplitude = 0.5;
+		private double amplitudeTotal;
+		
+		[ReadOnly] public NativeArray<double2> octaveOffsets;
+		
+		public void Initialise(ref Random random, double range = 32768.0)
 		{
-			double4 scaledBounds = bounds / scale;
-			int4 boundsInt = (int4) floor(scaledBounds);
+			// Calculate total amplitude for normalisation
+			double amplitude = initialAmplitude;
+			amplitudeTotal = amplitude;
+			for(int i = 0; i < settings.octaves - 1; i++)
+			{
+				amplitude *= settings.gain;
+				amplitudeTotal += amplitude;
+			}
+		}
+		
+		/// <summary>Generates the offsets for the noise generation algorithm.</summary>
+		/// <param name="random">The random instance to use.</param>
+		/// <param name="persistent">False if the generated array should be temporary, true otherwise.</param>
+		/// <param name="range">
+		/// Range of values to generate the offsets between.
+		/// Higher is more random, lower is less likely to have artifacts.
+		/// </param>
+		public void GenerateOffsets(ref Random random, double range = 60000.0, bool persistent = false)
+		{
+			octaveOffsets = new NativeArray<double2>(settings.octaves, persistent ? Allocator.Persistent : Allocator.TempJob);
+			for(int octave = 0; octave < settings.octaves; octave++)
+			{
+				octaveOffsets[octave] = random.NextDouble2(-range, range);
+			}
+		}
+		
+		private static readonly double2x2 rotation = new double2x2
+		(
+			cos(0.5), sin(0.5),
+			-sin(0.5), cos(0.5)
+		);
+		
+		[SuppressMessage("ReSharper", "PossibleLossOfFraction")]
+		public void Execute(int i)
+		{
+			// Get sample position
+			double2 position = double2(0.0);
+			position += double2(index) * (double) size;
+			position += double2(i % size, i / size);
+			position /= settings.scale;
 			
-			dimensions = boundsInt.zw - boundsInt.xy;
+			// Fractal noise algorithm
+			double value = 0.0;
+			double amplitude = initialAmplitude;
+			double frequency = 2.0;
 			
-			int total = dimensions.x * dimensions.y;
-			return total;
+			for(int octave = 0; octave < settings.octaves; octave++)
+			{
+				// Permute the position and use the given offset
+				position = mul(rotation, position) * frequency + octaveOffsets[octave];
+				
+				// Sample octave value
+				value += amplitude * Sample(position);
+				
+				// Update modifiers
+				frequency *= settings.lacunarity;
+				amplitude *= settings.gain;
+			}
+			
+			// Normalise
+			value /= amplitudeTotal;
+			
+			result[i] = value;
+		}
+		
+		#region Noise Algorithm
+		
+		/*
+			This noise algorithm is based on this implementation:
+			https://www.shadertoy.com/view/4dS3Wd
+		*/
+		
+		[BurstCompile]
+		private static double Hash(double val)
+		{
+			val = frac(val * 0.011);
+			val *= val + 7.5;
+			val *= val + val;
+			return frac(val);
 		}
 		
 		[BurstCompile]
-		public static void Index2D(in int2 dimensions, int index, out int2 position)
+		private static double Hash(in double2 val)
 		{
-			position = int2
-			(
-				(index) % dimensions.x,
-				(index / dimensions.x) % dimensions.y
-			);
+			double3 val3D = frac(val.xyx * 0.13);
+			val3D += dot(val3D, val3D.yzx + 3.333);
+			return frac((val3D.x + val3D.y) * val3D.z);
 		}
 		
-		public static SimplexFractal2D Construct
-		(
-			ref Random random,
-			
-			in double2 origin, in double2 size, double samples,
-			double scale,
-			int octaves, double amplitudeModifier, double scaleModifier
-		)
-		{
-			return Construct
-			(
-				ref random, new double2(-double.MinValue, -double.MaxValue),
-				origin, size, samples,
-				scale,
-				octaves, amplitudeModifier, scaleModifier
-			);
-		}
-		
-		public static SimplexFractal2D Construct
-		(
-			ref Random random, in double2 randomBounds,
-			
-			in double2 origin, in double2 size, double samples,
-			double scale,
-			int octaves, double amplitudeModifier, double scaleModifier
-		)
-		{
-			int arraySize = Size(origin, size, samples, out int2 dimensions, out double4 bounds);
-			SimplexFractal2D instance = new SimplexFractal2D()
-			{
-				bounds = bounds,
-				
-				dimensions = dimensions,
-				map = new NativeArray<double>(arraySize, Allocator.TempJob),
-				
-				noiseScale = scale,
-				
-				octaves = octaves,
-				amplitudeModifier = amplitudeModifier,
-				scaleModifier = scaleModifier,
-				
-				offsets = new NativeArray<double2>(octaves, Allocator.TempJob)
-			};
-			
-			for(int i = 0; i < octaves; ++i)
-			{
-				instance.offsets[i] = random.NextDouble2(randomBounds.xx, randomBounds.yy);
-			}
-			
-			return instance;
-		}
-		
-		public void Execute(int index)
-		{
-			Index2D(dimensions, index, out int2 sample);
-			double2 position = lerp(bounds.xy, bounds.zw, (double2) sample / (double2) (dimensions - 1));
-			
-			double value = 0.0f;
-			double amplitude = 1.0f;
-			double scale = noiseScale;
-			
-			for(int octave = 0; octave < octaves; ++octave)
-			{
-				double2 samplePosition = position;
-				samplePosition += offsets[octave];
-				samplePosition *= scale;
-				
-				// value += Sample(samplePosition) * amplitude
-				value = mad(Sample(samplePosition), amplitude, value);
-				
-				amplitude *= amplitudeModifier;
-				scale *= scaleModifier;
-			}
-			
-			map[index] = value;
-		}
-		
-		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		[BurstCompile(FloatPrecision.High, FloatMode.Fast)]
 		public static double Sample(in double2 position)
 		{
-			/*
-				This method is based on this implementation:
-				https://github.com/ashima/webgl-noise/blob/master/src/noise2D.glsl
-			*/
+			double2 integer = floor(position);
+			double2 fraction = frac(position);
 			
-			double C_x = (3.0 - sqrt(3.0)) / 6.0;
-			double C_y = 0.5 * (sqrt(3.0) - 1.0);
-			double C_z = -1.0 + 2.0 * C_x;
-			const double C_w = 1.0 / 41.0;
+			double a = Hash(integer);
+			double b = Hash(integer + double2(1, 0));
+			double c = Hash(integer + double2(0, 1));
+			double d = Hash(integer + double2(1, 1));
 			
-			double4 C = double4(C_x, C_y, C_z, C_w);
-			
-			// First corner
-			double2 i = floor(position + dot(position, C.yy));
-			double2 x0 = position - dot(i, C.xx);
-			
-			// Other corners
-			/*
-				Branch-less implementation from:
-				https://www.arxiv-vanity.com/papers/1204.1461/
-			*/
-			double2 i1 = double2(0.0, 0.0);
-			i1.x = step(x0.y, x0.x);
-			i1.y = 1.0 - i1.x;
-			
-			double4 x12 = x0.xyxy + C.xxzz;
-			x12.xy -= i1;
-			
-			// Permutations
-			Mod289(ref i);
-			double3 p = i.y + double3(0.0, i1.y, 1.0);
-			Permute(ref p);
-			p += i.x + double3(0.0, i1.x, 1.0);
-			Permute(ref p);
-
-			double3 m = max(0.5 - double3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
-			m *= m;
-			m *= m;
-			
-			// Gradients: 41 points uniformly over a line, mapped onto a diamond.
-			// The ring size 17 * 17 = 289 is close to a multiple of 41 (41 * 7 = 287)
-			
-			double3 x = 2.0 * frac(p * C.www) - 1.0;
-			double3 h = abs(x) - 0.5;
-			double3 ox = floor(x + 0.5);
-			double3 a0 = x - ox;
-			
-			// Normalise gradients implicitly by scaling m
-			m *= rsqrt(a0 * a0 + h * h);
-			
-			// Compute final noise value at P
-			double3 g = double3
-			(
-				// X
-				a0.x * x0.x + h.x * x0.y,
-				// YZ
-				a0.yz * x12.xz + h.yz * x12.yw
-			);
-			return 130.0 * dot(m, g);
+			// 2D lerp between values with smoothstep
+			double2 u = fraction * fraction * (3.0 - 2.0 * fraction);
+			return lerp(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 		}
+		
+		#endregion
 	}
 }

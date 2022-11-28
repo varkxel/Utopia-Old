@@ -1,111 +1,115 @@
-using System;
-using System.Runtime.CompilerServices;
+using UnityEngine;
+
 using Unity.Burst;
 using Unity.Collections;
-using UnityEngine;
 using Unity.Mathematics;
-using static Unity.Mathematics.math;
-using UnityEngine.Rendering;
-using float2 = Unity.Mathematics.float2;
 using Random = Unity.Mathematics.Random;
+
+using Utopia.World.Masks;
 
 namespace Utopia.World
 {
 	[BurstCompile]
 	public class Generator : MonoBehaviour
 	{
-		[NonSerialized] public Random random;
+		internal const string AssetPath = "Utopia/Generator/";
 		
+		#region Singleton
+		
+		public static Generator instance = null;
+		
+		private void AwakeSingleton()
+		{
+			if(instance != null)
+			{
+				Debug.LogError
+				(
+					$"Multiple {nameof(Generator)} instances exist in the scene!\n" +
+					$"Instance \"{instance.name}\" already exists, destroying instance \"{name}\".",
+					gameObject
+				);
+				Destroy(gameObject);
+				return;
+			}
+			instance = this;
+		}
+		
+		#endregion
+		
+		[Range(1, uint.MaxValue)] public uint seed = 1;
+		[System.NonSerialized] public Random random;
+		
+		// World
 		[Header("World")]
-		public float worldSize = 16384;
-
+		public int worldSize = 4096;
+		public int chunkSize = 256;
+		
+		// Mask
 		[Header("Mask")]
-		public Mask mask = new Mask();
-		public float maskDivisor = 4;
+		public Mask mask;
+		public int maskDivisor = 4;
 		
 		public bool isMaskGenerated { get; private set; } = false;
-		private NativeArray<float> maskData;
-		private int maskSize;
+		public int maskSize;
+		public NativeArray<float> maskData;
 		
-		[BurstCompile, MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static unsafe float SampleMaskRaw([ReadOnly] float* array, in int2 index, int maskSize)
-		{
-			return array[index.x + index.y * maskSize];
-		}
+		// Heightmap
+		[Header("Heightmap")]
+		public NoiseMap2D heightmap;
 		
-		[BurstCompile]
-		public static unsafe float SampleMask([ReadOnly] float* array, in float2 position, float maskDivisor, int maskSize)
+		private void Awake()
 		{
-			float2 scaledPosition = position / maskDivisor;
-			float2 roundedPosition = round(scaledPosition);
-
-			float2 positionOffset = scaledPosition - roundedPosition;
-			float2 offsetDirection = normalizesafe(positionOffset);
+			AwakeSingleton();
 			
-			int2 offsetIndex = (int2) round(offsetDirection);
-			int2 baseIndex = (int2) roundedPosition;
-
-			int2 offsetIndexX = baseIndex + new int2(offsetIndex.x, 0);
-			int2 offsetIndexY = baseIndex + new int2(0, offsetIndex.y);
-
-			float2 offsetSample = new float2
-			(
-				SampleMaskRaw(array, offsetIndexX, maskSize),
-				SampleMaskRaw(array, offsetIndexY, maskSize)
-			);
-			float baseSample = SampleMaskRaw(array, baseIndex, maskSize);
-
-			float2 interpolated = lerp(baseSample, offsetSample, positionOffset);
-			float value = (interpolated.x + interpolated.y) / 2.0f;
-			return value;
-		}
-
-		void OnValidate()
-		{
-			float divisor = max(maskDivisor, Mask.batchSize);
-			worldSize /= divisor;
-			worldSize = round(worldSize);
-			worldSize *= divisor;
+			// Initialise random
+			random = new Random(seed);
+			
+			// Set the octave positions
+			heightmap.GenerateOffsets(ref random);
 		}
 		
-		void Start()
+		private void OnDestroy()
 		{
-			GenerateMask();
+			heightmap.OnDestroy();
+			DestroyMask();
 		}
-
-		void OnDestroy()
+		
+		public void GenerateMask()
 		{
-			ResetMask();
+			DestroyMask();
+			
+			maskSize = worldSize / maskDivisor;
+			
+			// Generate data for shader & dispatch shader
+			mask.Generate(ref random, maskSize);
+			
+			// Read back shader data asynchronously
+			maskData = new NativeArray<float>(maskSize * maskSize, Allocator.Persistent);
+			mask.GetResult(ref maskData);
 		}
-
-		public void ResetMask()
+		
+		public void DestroyMask()
 		{
 			if(isMaskGenerated)
 			{
 				maskData.Dispose();
+				maskSize = 0;
 				isMaskGenerated = false;
 			}
 		}
-
-		public void GenerateMask()
+		
+		public void GenerateChunk(in int2 position)
 		{
-			ResetMask();
-
-			maskSize = (int) worldSize / (int) maskDivisor;
-			Mask mask = new Mask(maskSize);
-			mask.Generate(ref random);
-			maskData = new NativeArray<float>(maskSize * maskSize, Allocator.Persistent);
-			AsyncGPUReadback.RequestIntoNativeArray(ref maskData, mask.gpuResult, 0, request =>
-			{
-				if(request.hasError)
-				{
-					Debug.LogError("Error requesting island mask data from GPU.");
-					return;
-				}
-				
-				isMaskGenerated = true;
-				mask.gpuResult.DiscardContents();
-			});
+			GameObject chunkObject = new GameObject();
+			chunkObject.transform.SetParent(transform);
+			chunkObject.name = $"Chunk ({position.x.ToString()}, {position.y.ToString()})";
+			
+			Chunk chunk = chunkObject.AddComponent<Chunk>();
+			chunk.generator = this;
+			chunk.index = position;
+			chunk.size = chunkSize;
+			
+			chunk.Generate();
 		}
 	}
 }
