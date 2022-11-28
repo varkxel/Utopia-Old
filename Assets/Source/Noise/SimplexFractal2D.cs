@@ -55,9 +55,16 @@ namespace Utopia.Noise
 			}
 		}
 		
-		public void GenerateOffsets(ref Random random, Allocator allocator, double range = 60000.0)
+		/// <summary>Generates the offsets for the noise generation algorithm.</summary>
+		/// <param name="random">The random instance to use.</param>
+		/// <param name="persistent">False if the generated array should be temporary, true otherwise.</param>
+		/// <param name="range">
+		/// Range of values to generate the offsets between.
+		/// Higher is more random, lower is less likely to have artifacts.
+		/// </param>
+		public void GenerateOffsets(ref Random random, double range = 60000.0, bool persistent = false)
 		{
-			octaveOffsets = new NativeArray<double2>(settings.octaves, allocator);
+			octaveOffsets = new NativeArray<double2>(settings.octaves, persistent ? Allocator.Persistent : Allocator.TempJob);
 			for(int octave = 0; octave < settings.octaves; octave++)
 			{
 				octaveOffsets[octave] = random.NextDouble2(-range, range);

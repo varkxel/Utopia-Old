@@ -33,16 +33,18 @@ namespace Utopia.World
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
 			// Generate the noise map to display
-			NativeArray<double> result = new NativeArray<double>(resolution * resolution, Allocator.TempJob);
+			const int resultLength = resolution * resolution;
+			NativeArray<double> result = new NativeArray<double>(resultLength, Allocator.TempJob);
 			SimplexFractal2D generator = new SimplexFractal2D()
 			{
 				settings = noiseMap.settings,
 				index = new int2(0, 0),
 				size = resolution,
-				result = result
+				result = result,
 			};
 			generator.Initialise(ref random);
-			JobHandle generatorHandle = generator.Schedule(resolution * resolution, 4);
+			generator.GenerateOffsets(ref random);
+			JobHandle generatorHandle = generator.Schedule(resultLength, 4);
 			
 			// Allocate managed array while job is running
 			Color[] image = new Color[resolution * resolution];
