@@ -1,5 +1,4 @@
 using UnityEngine;
-
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -36,7 +35,8 @@ namespace Utopia.World
 		
 		#endregion
 		
-		[Range(1, uint.MaxValue)] public uint seed = 1;
+		[Header("Random Instance")]
+		public uint seed = 1;
 		[System.NonSerialized] public Random random;
 		
 		// World
@@ -50,24 +50,29 @@ namespace Utopia.World
 		public int maskDivisor = 4;
 		
 		public bool isMaskGenerated { get; private set; } = false;
-		public int maskSize;
+		[System.NonSerialized] public int maskSize;
 		public NativeArray<float> maskData;
 		
 		// Heightmap
 		[Header("Heightmap")]
 		public NoiseMap2D heightmap;
 		
+		private void OnValidate()
+		{
+			if(seed <= 1) seed = 1;
+			maskDivisor = math.ceilpow2(maskDivisor);
+		}
+		
 		private void Awake()
 		{
 			AwakeSingleton();
 			
 			// Initialise random
-			random = new Random(seed);
+			random.InitState(seed);
 		}
 		
 		private void OnDestroy()
 		{
-			heightmap.OnDestroy();
 			DestroyMask();
 		}
 		

@@ -23,7 +23,7 @@ namespace Utopia
 		protected virtual void Awake()
 		{
 			texture = new Texture2D(resolution, resolution, DefaultFormat.HDR, TextureCreationFlags.DontUploadUponCreate);
-			UpdateTexture();
+			if(Application.isPlaying) UpdateTexture();
 		}
 		
 		/// <summary>
@@ -33,11 +33,19 @@ namespace Utopia
 		
 		public override void OnInspectorGUI()
 		{
+			// Draw base inspector
 			base.OnInspectorGUI();
 			
 			// Draw title
 			EditorGUILayout.Separator();
 			EditorGUILayout.LabelField("Preview", EditorStyles.boldLabel);
+			
+			// Only run when playing
+			if(!Application.isPlaying)
+			{
+				EditorGUILayout.HelpBox("Hit Play to view the preview.", MessageType.Info);
+				return;
+			}
 			
 			// Draw texture
 			EditorGUI.DrawPreviewTexture(GUILayoutUtility.GetAspectRect(1), texture);

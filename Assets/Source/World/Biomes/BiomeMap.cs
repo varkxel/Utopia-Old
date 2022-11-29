@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.Profiling;
 using Unity.Collections;
 using Unity.Mathematics;
-using Random = Unity.Mathematics.Random;
 
 using System.Collections.Generic;
 

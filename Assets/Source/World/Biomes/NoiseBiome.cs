@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
@@ -22,20 +23,6 @@ namespace Utopia.World.Biomes
 		{
 			int chunkLength = chunkSize * chunkSize;
 			
-			// Generate a set of temporary offsets if in inspector,
-			// otherwise, use the pre-generated ones.
-			#if UNITY_EDITOR
-			if(!Application.isPlaying)
-			{
-				// Initialise random to the current hash code.
-				Unity.Mathematics.Random random = default;
-				random.InitState((uint) GetHashCode());
-				
-				// Generate the temporary offsets
-				noise.GenerateOffsets(ref random, persistent: false);
-			}
-			#endif
-			
 			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);
 			
 			NativeArray<double> noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
@@ -56,14 +43,6 @@ namespace Utopia.World.Biomes
 			};
 			writeJob.Schedule(chunkLength, math.min(64, chunkSize), noiseJobHandle).Complete();
 			noiseMap.Dispose();
-			
-			#if UNITY_EDITOR
-			if(!Application.isPlaying)
-			{
-				// Destroy the temporary offsets
-				noise.OnDestroy();
-			}
-			#endif
 		}
 		
 		[BurstCompile]

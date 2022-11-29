@@ -26,6 +26,7 @@ namespace Utopia.World
 			NoiseMap2D noiseMap = target as NoiseMap2D;
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
+			noiseMap.GenerateOffsets(ref random, persistent: false);
 			noiseMap.CreateJob(new int2(0, 0), resolution, out SimplexFractal2D generator);
 			
 			// Generate the noise map to display
@@ -40,7 +41,6 @@ namespace Utopia.World
 			
 			// Await job to finish
 			generatorHandle.Complete();
-			generator.octaveOffsets.Dispose();
 			
 			// Convert doubles to float for texture
 			for(int i = 0; i < result.Length; i++)
@@ -49,11 +49,11 @@ namespace Utopia.World
 				image[i] = new Color(value, value, value, 1.0f);
 			}
 			
-			// Apply result
-			UploadTexture(image);
-			
 			// Free noisemap
 			result.Dispose();
+			
+			// Apply result
+			UploadTexture(image);
 		}
 	}
 }

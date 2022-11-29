@@ -32,10 +32,10 @@ namespace Utopia.World.Biomes
 		{
 			BiomeMap map = target as BiomeMap;
 			Debug.Assert(map != null, nameof(map) + " != null");
-
+			
 			NativeArray<int> result = new NativeArray<int>(resolution * resolution, Allocator.TempJob);
 			map.GenerateChunk(int2.zero, resolution, ref result);
-
+			
 			Color[] colours = new Color[result.Length];
 			for(int i = 0; i < result.Length; i++)
 			{
