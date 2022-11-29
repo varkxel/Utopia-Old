@@ -2,7 +2,7 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 
-namespace Utopia.World.Biomes
+namespace Utopia.World
 {
 	public abstract class Biome : ScriptableObject
 	{

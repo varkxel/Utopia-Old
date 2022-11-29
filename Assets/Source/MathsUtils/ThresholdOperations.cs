@@ -2,7 +2,7 @@
 using Unity.Burst;
 using System;
 
-namespace Utopia.World.Biomes
+namespace MathsUtils
 {
 	public enum ThresholdOperation
 	{

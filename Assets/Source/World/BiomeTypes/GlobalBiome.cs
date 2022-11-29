@@ -4,7 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Utopia.World.Biomes
+namespace Utopia.World.BiomeTypes
 {
 	/// <summary>
 	/// A spawn rule that completely covers the map, independent of what is there.

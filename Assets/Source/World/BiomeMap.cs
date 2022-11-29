@@ -5,7 +5,7 @@ using Unity.Mathematics;
 
 using System.Collections.Generic;
 
-namespace Utopia.World.Biomes
+namespace Utopia.World
 {
 	[CreateAssetMenu(menuName = AssetPath + "Biome Map", fileName = "Biome Map")]
 	public class BiomeMap : ScriptableObject

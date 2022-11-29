@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
@@ -6,8 +5,9 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using Utopia.Noise;
+using MathsUtils;
 
-namespace Utopia.World.Biomes
+namespace Utopia.World.BiomeTypes
 {
 	[CreateAssetMenu(menuName = AssetPath + "Noise Biome", fileName = "Noise Spawn Rule")]
 	public class NoiseBiome : Biome
