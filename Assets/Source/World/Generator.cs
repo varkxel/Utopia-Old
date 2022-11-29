@@ -47,10 +47,6 @@ namespace Utopia.World
 		// Mask
 		[Header("Mask")]
 		public Mask mask;
-		public int maskDivisor = 4;
-		
-		public bool isMaskGenerated { get; private set; } = false;
-		[System.NonSerialized] public int maskSize;
 		public NativeArray<float> maskData;
 		
 		// Heightmap
@@ -59,8 +55,7 @@ namespace Utopia.World
 		
 		private void OnValidate()
 		{
-			if(seed <= 1) seed = 1;
-			maskDivisor = math.ceilpow2(maskDivisor);
+			if(seed < 1u) seed = 1u;
 		}
 		
 		private void Awake()
@@ -71,44 +66,25 @@ namespace Utopia.World
 			random.InitState(seed);
 		}
 		
-		private void OnDestroy()
-		{
-			DestroyMask();
-		}
-		
 		public void GenerateMask()
 		{
-			DestroyMask();
-			
-			maskSize = worldSize / maskDivisor;
-			
 			// Generate data for shader & dispatch shader
-			mask.Generate(ref random, maskSize);
+			mask.Generate(ref random, worldSize);
 			
 			// Read back shader data asynchronously
-			maskData = new NativeArray<float>(maskSize * maskSize, Allocator.Persistent);
+			maskData = new NativeArray<float>(worldSize * worldSize, Allocator.Persistent);
 			mask.GetResult(ref maskData);
 		}
 		
-		public void DestroyMask()
-		{
-			if(isMaskGenerated)
-			{
-				maskData.Dispose();
-				maskSize = 0;
-				isMaskGenerated = false;
-			}
-		}
-		
-		public void GenerateChunk(in int2 position)
+		public void GenerateChunk(in int2 index)
 		{
 			GameObject chunkObject = new GameObject();
 			chunkObject.transform.SetParent(transform);
-			chunkObject.name = $"Chunk ({position.x.ToString()}, {position.y.ToString()})";
+			chunkObject.name = $"Chunk ({index.x.ToString()}, {index.y.ToString()})";
 			
 			Chunk chunk = chunkObject.AddComponent<Chunk>();
 			chunk.generator = this;
-			chunk.index = position;
+			chunk.index = index;
 			chunk.size = chunkSize;
 			
 			chunk.Generate();

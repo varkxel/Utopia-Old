@@ -22,8 +22,9 @@ namespace Utopia.World.Masks
 		public const int batchSize = MathsUtil.MinMax_MaxBatch;
 		
 		[Header("Mesh Settings")]
-		[Range(batchSize, 65536)]
-		public int complexity = 256;
+		// ReSharper disable once PossibleLossOfFraction
+		[Range(batchSize, ushort.MaxValue / 2)]
+		public ushort complexity = 256;
 		
 		[Header("Noise Generation")]
 		public float scale = 2.0f;
@@ -57,7 +58,7 @@ namespace Utopia.World.Masks
 		{
 			CommandBuffer commandBuffer = new CommandBuffer()
 			{
-				name = "MaskGenerator"
+				name = "Generate Mask"
 			};
 			
 			int verticesCount = complexity;
