@@ -5,11 +5,10 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using Utopia.Noise;
-using Random = Unity.Mathematics.Random;
 
 namespace Utopia.World.Biomes
 {
-	[CreateAssetMenu(menuName = AssetPath + "Noise Rule", fileName = "Noise Spawn Rule", order = 1), BurstCompile]
+	[CreateAssetMenu(menuName = AssetPath + "Noise Biome", fileName = "Noise Spawn Rule")]
 	public class NoiseBiome : Biome
 	{
 		[Header("Noise Map")]
@@ -19,11 +18,24 @@ namespace Utopia.World.Biomes
 		[Range(0.0f, 1.0f)] public double threshold = 0.5f;
 		public ThresholdOperation thresholdOperation = ThresholdOperation.GreaterEqual;
 		
-		public override void Spawn(ref Random random, in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
 		{
 			int chunkLength = chunkSize * chunkSize;
 			
-			noise.GenerateOffsets(ref random);
+			// Generate a set of temporary offsets if in inspector,
+			// otherwise, use the pre-generated ones.
+			#if UNITY_EDITOR
+			if(!Application.isPlaying)
+			{
+				// Initialise random to the current hash code.
+				Unity.Mathematics.Random random = default;
+				random.InitState((uint) GetHashCode());
+				
+				// Generate the temporary offsets
+				noise.GenerateOffsets(ref random, persistent: false);
+			}
+			#endif
+			
 			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);
 			
 			NativeArray<double> noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
@@ -43,6 +55,15 @@ namespace Utopia.World.Biomes
 				noise = noiseMap
 			};
 			writeJob.Schedule(chunkLength, math.min(64, chunkSize), noiseJobHandle).Complete();
+			noiseMap.Dispose();
+			
+			#if UNITY_EDITOR
+			if(!Application.isPlaying)
+			{
+				// Destroy the temporary offsets
+				noise.OnDestroy();
+			}
+			#endif
 		}
 		
 		[BurstCompile]

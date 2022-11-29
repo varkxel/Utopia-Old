@@ -1,14 +1,16 @@
-﻿using System;
-using AOT;
+﻿using AOT;
 using Unity.Burst;
+using System;
 
-namespace Utopia.World.Biomes {
+namespace Utopia.World.Biomes
+{
 	public enum ThresholdOperation
 	{
 		Greater, Less,
 		GreaterEqual, LessEqual
 	}
 	
+	[BurstCompile]
 	public static class ThresholdOperations
 	{
 		public delegate bool Delegate(double val, double threshold);
@@ -21,8 +23,10 @@ namespace Utopia.World.Biomes {
 		/// <exception cref="ArgumentOutOfRangeException">
 		/// Thrown if there is no function for the given operation.
 		/// </exception>
-		public static FunctionPointer<Delegate> GetOperation(this ThresholdOperation operation) {
-			return operation switch {
+		public static FunctionPointer<Delegate> GetOperation(this ThresholdOperation operation)
+		{
+			return operation switch
+			{
 				ThresholdOperation.Greater => GreaterPtr,
 				ThresholdOperation.GreaterEqual => GreaterEqualPtr,
 				ThresholdOperation.Less => LessPtr,

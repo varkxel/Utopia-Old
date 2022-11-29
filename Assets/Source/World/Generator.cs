@@ -63,9 +63,6 @@ namespace Utopia.World
 			
 			// Initialise random
 			random = new Random(seed);
-			
-			// Set the octave positions
-			heightmap.GenerateOffsets(ref random);
 		}
 		
 		private void OnDestroy()

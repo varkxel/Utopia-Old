@@ -1,9 +1,8 @@
+using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine;
-using Random = Unity.Mathematics.Random;
 
 namespace Utopia.World.Biomes
 {
@@ -11,10 +10,10 @@ namespace Utopia.World.Biomes
 	/// A spawn rule that completely covers the map, independent of what is there.
 	/// Use this for oceans.
 	/// </summary>
-	[CreateAssetMenu(menuName = AssetPath + "Global Rule", order = 0)]
+	[CreateAssetMenu(menuName = AssetPath + "Global Biome")]
 	public class GlobalBiome : Biome
 	{
-		public override void Spawn(ref Random random, in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
 		{
 			WriteJob writeJob = new WriteJob()
 			{

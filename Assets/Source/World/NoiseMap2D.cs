@@ -17,36 +17,48 @@ namespace Utopia.World
 		[System.NonSerialized]
 		public NativeArray<double2> octaveOffsets;
 		
+		protected virtual void Awake()
+		{
+			// Generate offsets by default on creation
+			GenerateOffsets(ref Generator.instance.random, persistent: true);
+		}
+		
 		/// <summary>
 		/// Generates the offsets for the noise map to use.
 		/// </summary>
 		/// <param name="random">Random instance to utilise.</param>
+		/// <param name="persistent">
+		/// True if the result array should be allocated as <see cref="Allocator.Persistent"/>,
+		/// or false if it should be allocated as <see cref="Allocator.TempJob"/>.
+		/// </param>
 		/// <param name="range">
 		/// Range of offsets to generate:
 		/// Higher is more random, lower has less chance of artifacts.
 		/// </param>
-		public void GenerateOffsets(ref Random random, double range = 64000.0)
+		public void GenerateOffsets(ref Random random, bool persistent, double range = 64000.0)
 		{
 			int octaves = settings.octaves;
 			
-			octaveOffsets = new NativeArray<double2>(octaves, Allocator.Persistent);
+			octaveOffsets = new NativeArray<double2>(octaves, persistent ? Allocator.Persistent : Allocator.TempJob);
 			for(int octave = 0; octave < octaves; octave++)
 			{
 				octaveOffsets[octave] = random.NextDouble2(-range, range);
 			}
 		}
 		
-		public void OnDestroy()
+		public virtual void OnDestroy()
 		{
+			// Destroy offsets on destruction
 			octaveOffsets.Dispose();
 		}
 		
 		/// <summary>
-		/// Creates a job with all parameters set besides the result array.
+		/// Creates and initialises a <see cref="SimplexFractal2D"/> job,
+		/// with all parameters set besides the <see cref="SimplexFractal2D.result"/> array.
 		/// </summary>
-		/// <param name="chunk"></param>
-		/// <param name="chunkSize"></param>
-		/// <param name="job"></param>
+		/// <param name="chunk">The chunk index to generate.</param>
+		/// <param name="chunkSize">The size of the chunk to generate.</param>
+		/// <param name="job">The job created.</param>
 		public void CreateJob(in int2 chunk, int chunkSize, out SimplexFractal2D job)
 		{
 			job = new SimplexFractal2D()
@@ -57,6 +69,7 @@ namespace Utopia.World
 				settings = this.settings,
 				octaveOffsets = this.octaveOffsets
 			};
+			job.Initialise();
 		}
 	}
 }

@@ -3,15 +3,21 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
-using Random = Unity.Mathematics.Random;
-
-using System.Diagnostics.CodeAnalysis;
 
 namespace Utopia.Noise
 {
+	/// <summary>A fractal simplex 2D noise generator.</summary>
+	/// <remarks>
+	/// Setting <see cref="result"/> and <see cref="octaveOffsets"/>
+	/// is your responsibility and must be done manually.
+	/// </remarks>
 	[BurstCompile(FloatPrecision.High, FloatMode.Fast)]
 	public struct SimplexFractal2D : IJobParallelFor
 	{
+		/// <summary>
+		/// Settings storage object for the fractal noise generator.
+		/// Contains all the settings that need to be serialized.
+		/// </summary>
 		[System.Serializable]
 		public struct Settings
 		{
@@ -30,8 +36,6 @@ namespace Utopia.Noise
 			};
 		}
 		
-		[WriteOnly] public NativeArray<double> result;
-		
 		public Settings settings;
 		
 		public int2 index;
@@ -41,9 +45,17 @@ namespace Utopia.Noise
 		private const double initialAmplitude = 0.5;
 		private double amplitudeTotal;
 		
+		/// <summary>The position offsets to use for each octave.</summary>
+		/// <remarks>It is your responsibility to set these before executing the generator.</remarks>
 		[ReadOnly] public NativeArray<double2> octaveOffsets;
 		
-		public void Initialise(ref Random random, double range = 32768.0)
+		/// <summary>The array containing the results of the generator.</summary>
+		/// <remarks>You need to allocate the result vector yourself.</remarks>
+		[WriteOnly] public NativeArray<double> result;
+		
+		/// <summary>Initialises local cached variables used within the job.</summary>
+		/// <remarks>You don't need to call this if you created your job via a NoiseMap2D object.</remarks>
+		public void Initialise()
 		{
 			// Calculate total amplitude for normalisation
 			double amplitude = initialAmplitude;
@@ -55,34 +67,20 @@ namespace Utopia.Noise
 			}
 		}
 		
-		/// <summary>Generates the offsets for the noise generation algorithm.</summary>
-		/// <param name="random">The random instance to use.</param>
-		/// <param name="persistent">False if the generated array should be temporary, true otherwise.</param>
-		/// <param name="range">
-		/// Range of values to generate the offsets between.
-		/// Higher is more random, lower is less likely to have artifacts.
-		/// </param>
-		public void GenerateOffsets(ref Random random, double range = 60000.0, bool persistent = false)
-		{
-			octaveOffsets = new NativeArray<double2>(settings.octaves, persistent ? Allocator.Persistent : Allocator.TempJob);
-			for(int octave = 0; octave < settings.octaves; octave++)
-			{
-				octaveOffsets[octave] = random.NextDouble2(-range, range);
-			}
-		}
-		
+		/// <summary>Cached per-octave rotation matrix.</summary>
+		/// <remarks>Used to reduce artefacts in the result.</remarks>
 		private static readonly double2x2 rotation = new double2x2
 		(
 			cos(0.5), sin(0.5),
 			-sin(0.5), cos(0.5)
 		);
 		
-		[SuppressMessage("ReSharper", "PossibleLossOfFraction")]
 		public void Execute(int i)
 		{
 			// Get sample position
 			double2 position = double2(0.0);
 			position += double2(index) * (double) size;
+			// ReSharper disable once PossibleLossOfFraction
 			position += double2(i % size, i / size);
 			position /= settings.scale;
 			
@@ -116,15 +114,6 @@ namespace Utopia.Noise
 			This noise algorithm is based on this implementation:
 			https://www.shadertoy.com/view/4dS3Wd
 		*/
-		
-		[BurstCompile]
-		private static double Hash(double val)
-		{
-			val = frac(val * 0.011);
-			val *= val + 7.5;
-			val *= val + val;
-			return frac(val);
-		}
 		
 		[BurstCompile]
 		private static double Hash(in double2 val)
