@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: Land
   m_EditorClassIdentifier: 
   noise: {fileID: 11400000, guid: 68608c24b52d84975a81781742217594, type: 2}
-  threshold: 0.5049999952316284
+  threshold: 0.5379999876022339
   thresholdOperation: 2

@@ -1,7 +1,6 @@
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
 using Utopia.World.Masks;
@@ -42,7 +41,7 @@ namespace Utopia.World
 		// World
 		[Header("World")]
 		public int worldSize = 4096;
-		public int chunkSize = 256;
+		public int chunkSize = 128;
 		
 		// Mask
 		[Header("Mask")]
@@ -74,20 +73,6 @@ namespace Utopia.World
 			// Read back shader data asynchronously
 			maskData = new NativeArray<float>(worldSize * worldSize, Allocator.Persistent);
 			mask.GetResult(ref maskData);
-		}
-		
-		public void GenerateChunk(in int2 index)
-		{
-			GameObject chunkObject = new GameObject();
-			chunkObject.transform.SetParent(transform);
-			chunkObject.name = $"Chunk ({index.x.ToString()}, {index.y.ToString()})";
-			
-			Chunk chunk = chunkObject.AddComponent<Chunk>();
-			chunk.generator = this;
-			chunk.index = index;
-			chunk.size = chunkSize;
-			
-			chunk.Generate();
 		}
 	}
 }

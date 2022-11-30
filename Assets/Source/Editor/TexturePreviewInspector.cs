@@ -31,6 +31,8 @@ namespace Utopia
 		/// </summary>
 		public abstract void UpdateTexture();
 		
+		private bool alwaysUpdate = false;
+		
 		public override void OnInspectorGUI()
 		{
 			// Draw base inspector
@@ -40,18 +42,21 @@ namespace Utopia
 			EditorGUILayout.Separator();
 			EditorGUILayout.LabelField("Preview", EditorStyles.boldLabel);
 			
-			// Only run when playing
+			// Toggle whether the preview should always update
+			alwaysUpdate = EditorGUILayout.Toggle("Always Update", alwaysUpdate);
+			
+			// Return if not playing as cannot generate
 			if(!Application.isPlaying)
 			{
-				EditorGUILayout.HelpBox("Hit Play to view the preview.", MessageType.Info);
+				EditorGUILayout.HelpBox("Play the game to view the preview.", MessageType.Info);
 				return;
 			}
 			
+			// Manual / Auto update
+			if(alwaysUpdate || GUILayout.Button("Update Preview")) UpdateTexture();
+			
 			// Draw texture
 			EditorGUI.DrawPreviewTexture(GUILayoutUtility.GetAspectRect(1), texture);
-			
-			// Update button
-			if(GUILayout.Button("Update Preview")) UpdateTexture();
 		}
 	}
 }
