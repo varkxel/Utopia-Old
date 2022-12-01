@@ -41,7 +41,8 @@ namespace Utopia.World
 		// World
 		[Header("World")]
 		public int worldSize = 4096;
-		public int chunkSize = 128;
+		[Range(16, 256)]
+		public int chunkSize = 256;
 		
 		// Mask
 		[Header("Mask")]
