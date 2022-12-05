@@ -1,6 +1,6 @@
+using UnityEngine;
 using Unity.Burst;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Utopia
 {
@@ -24,7 +24,7 @@ namespace Utopia
 			}
 		}
 
-		void Update()
+		private void Update()
 		{
 			CalculateShift(player.position, shiftSize, out float3 shiftAmount, out int2 shiftIndex);
 

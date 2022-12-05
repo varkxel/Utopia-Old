@@ -42,7 +42,7 @@ namespace Utopia.World
 					continue;
 				}
 				#endif
-				
+
 				Profiler.BeginSample($"Layer {biomes[i].name}");
 				biomes[i].Spawn(chunk, chunkSize, i, ref map);
 				Profiler.EndSample();

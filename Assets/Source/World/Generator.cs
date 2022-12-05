@@ -54,6 +54,10 @@ namespace Utopia.World
 		[Header("Heightmap")]
 		public NoiseMap2D heightmap;
 		
+		// Biomes
+		[Header("Biomes")]
+		public BiomeMap biomes;
+		
 		private void OnValidate()
 		{
 			if(seed < 1u) seed = 1u;
