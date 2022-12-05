@@ -2,32 +2,49 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-
 using Utopia.Noise;
 
 namespace Utopia.World
 {
 	public class Chunk : MonoBehaviour
 	{
-		public Generator generator { get; internal set; }
-		
+		public bool generated { get; private set; } = false;
+
 		[HideInInspector] public int2 index;
-		[HideInInspector] public int size = 256;
-		
-		internal NativeArray<double> heightmap;
-		
-		// TODO implement
+		[HideInInspector] public int size;
+
+		internal static Chunk Create(GameObject obj, int2 index)
+		{
+			Chunk chunk = obj.AddComponent<Chunk>();
+			chunk.index = index;
+			chunk.size = Generator.instance.chunkSize;
+
+			chunk.Generate();
+			return chunk;
+		}
+
+		private NativeArray<double> heightmap;
+		private int heightmapSampleSize => size + 1;
+
+		private JobHandle? heightmapJob = null; 
+
 		public void Generate()
 		{
-			// Calculate sizeSq
-			int sizeSq = size * size;
+			int sampleSize = heightmapSampleSize;
+			heightmap = new NativeArray<double>(sampleSize * sampleSize, Allocator.Persistent);
+			Generator.instance.heightmap.CreateJob(index, sampleSize, out SimplexFractal2D generator);
+
+			generator.result = heightmap;
+			heightmapJob = generator.Schedule(heightmap.Length, 1);
 			
-			// Create heightmap job
-			generator.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapJob);
-			heightmap = new NativeArray<double>(sizeSq, Allocator.TempJob);
-			heightmapJob.result = heightmap;
 			
-			JobHandle heightmapJobHandle = heightmapJob.Schedule(sizeSq, 4);
+		}
+
+		private void Update()
+		{
+			if(heightmapJob == null) return;
+			if(!heightmapJob.Value.IsCompleted) return;
+			
 			
 		}
 	}

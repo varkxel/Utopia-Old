@@ -37,9 +37,8 @@ namespace Utopia.Noise
 		}
 		
 		public Settings settings;
-		
-		public int2 index;
-		public int size;
+
+		public int4 bounds;
 		
 		// Cached total amplitude
 		private const double initialAmplitude = 0.5;
@@ -78,12 +77,12 @@ namespace Utopia.Noise
 		public void Execute(int i)
 		{
 			// Get sample position
-			double2 position = double2(0.0);
-			position += double2(index) * (double) size;
-			// ReSharper disable once PossibleLossOfFraction
-			position += double2(i % size, i / size);
+			int2 size = bounds.zw - bounds.xy;
+			int2 index = new int2(i % size.x, i / size.x);
+
+			double2 position = lerp((double2) bounds.xy, (double2) bounds.zw, (double2) index / size);
 			position /= settings.scale;
-			
+
 			// Fractal noise algorithm
 			double value = 0.0;
 			double amplitude = initialAmplitude;

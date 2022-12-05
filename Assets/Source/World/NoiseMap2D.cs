@@ -55,28 +55,31 @@ namespace Utopia.World
 			octaveOffsetsGenerated = false;
 		}
 		
-		public void CreateJob(in int2 chunk, int chunkSize, out SimplexFractal2D job)
-		{
-			GenerateOffsets();
-			CreateJob_NoOffsets(chunk, chunkSize, out job);
-		}
-		
 		/// <summary>
-		/// Creates and initialises a <see cref="SimplexFractal2D"/> job,
-		/// with all parameters set besides the <see cref="SimplexFractal2D.result"/> array
-		/// and <see cref="SimplexFractal2D.octaveOffsets"/>.
-		/// See <see cref="CreateJob"/> for an all-in-one solution.
+		/// Creates and initialises a <see cref="SimplexFractal2D"/> job for a given chunk,
+		/// with all parameters set besides the <see cref="SimplexFractal2D.result"/> array.
 		/// </summary>
 		/// <param name="chunk">The chunk index to generate.</param>
 		/// <param name="chunkSize">The size of the chunk to generate.</param>
 		/// <param name="job">The job created.</param>
-		public void CreateJob_NoOffsets(in int2 chunk, int chunkSize, out SimplexFractal2D job)
+		public void CreateJob(in int2 chunk, int chunkSize, out SimplexFractal2D job)
 		{
+			int2 index = chunk * chunkSize;
+			CreateJob(new int4(index, index + chunkSize), out job);
+		}
+		
+		/// <summary>
+		/// Creates and initialises a <see cref="SimplexFractal2D"/> job for the given bounds,
+		/// with all parameters set besides the <see cref="SimplexFractal2D.result"/> array.
+		/// </summary>
+		/// <param name="bounds">The bounds for the sample to generate.</param>
+		/// <param name="job">The job created.</param>
+		public void CreateJob(in int4 bounds, out SimplexFractal2D job)
+		{
+			GenerateOffsets();
 			job = new SimplexFractal2D()
 			{
-				index = chunk,
-				size = chunkSize,
-				
+				bounds = bounds,
 				settings = this.settings,
 				octaveOffsets = this.octaveOffsets
 			};
