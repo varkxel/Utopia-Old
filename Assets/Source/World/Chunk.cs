@@ -32,26 +32,24 @@ namespace Utopia.World
 		public void Generate()
 		{
 			Generator generator = Generator.instance;
-			
-			int meshSize = MeshSize;
-			int meshSizeSq = meshSize * meshSize;
-			NativeArray<double> heightmap = new NativeArray<double>(meshSizeSq, Allocator.TempJob);
-			generator.heightmap.CreateJob(index, meshSize, out SimplexFractal2D heightmapGenerator);
+
+			NativeArray<double> heightmap = new NativeArray<double>(size * size, Allocator.TempJob);
+			generator.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapGenerator);
 
 			heightmapGenerator.result = heightmap;
 			JobHandle heightmapJob = heightmapGenerator.Schedule(heightmap.Length, 4);
 
-			NativeArray<int> indices = new NativeArray<int>(IndicesJob.ResultSize(meshSize), Allocator.TempJob);
+			NativeList<int> indices = new NativeList<int>(Allocator.TempJob);
 			IndicesJob indicesJobData = new IndicesJob()
 			{
-				size = meshSize,
+				size = size,
 				results = indices
 			};
-			JobHandle indicesJob = indicesJobData.Schedule(IndicesJob.ResultSize(meshSize), 6);
+			JobHandle indicesJob = indicesJobData.Schedule();
 
-			NativeArray<int> biomeMap = new NativeArray<int>(meshSizeSq, Allocator.TempJob);
-			generator.biomes.GenerateChunk(index, meshSize, ref biomeMap);
-			
+			NativeArray<int> biomeMap = new NativeArray<int>(size * size, Allocator.TempJob);
+			generator.biomes.GenerateChunk(index, size, ref biomeMap);
+
 			// Has to be single threaded unfortunately,
 			// Should change the biome system to use structs / function pointers.
 			NativeArray<float> heightmapMultiplier = new NativeArray<float>(biomeMap.Length, Allocator.TempJob);
@@ -62,16 +60,16 @@ namespace Utopia.World
 			}
 			biomeMap.Dispose();
 
-			NativeArray<float3> vertices = new NativeArray<float3>(meshSizeSq, Allocator.TempJob);
+			NativeArray<float3> vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
 			VertexJob vertexJobData = new VertexJob()
 			{
-				size = meshSize,
+				size = size,
 				heights = heightmap,
 				vertices = vertices,
 				biomeMultiplier = heightmapMultiplier
 			};
 			// TODO add heightmap multiplier job as dependency in the future - once it exists.
-			JobHandle vertexJob = vertexJobData.Schedule(meshSizeSq, meshSize, heightmapJob);
+			JobHandle vertexJob = vertexJobData.Schedule(size * size, size, heightmapJob);
 
 			indicesJob.Complete();
 			vertexJob.Complete();
@@ -82,6 +80,7 @@ namespace Utopia.World
 
 				indexFormat = IndexFormat.UInt16
 			};
+			mesh.RecalculateNormals();
 			GetComponent<MeshFilter>().mesh = mesh;
 
 			vertices.Dispose();
@@ -89,40 +88,32 @@ namespace Utopia.World
 			heightmapMultiplier.Dispose();
 			heightmap.Dispose();
 		}
-		
+
 		[BurstCompile]
-		private struct IndicesJob : IJobParallelFor
+		private struct IndicesJob : IJob
 		{
-			public static int ResultSize(int size) => (size * size - size) * 3;
-
 			public int size;
-			public NativeArray<int> results;
+			public NativeList<int> results;
 
-			public void Execute(int i)
+			public void Execute()
 			{
-				int triIndex = i / 3;
-				int triPoint = i % 3;
-				
-				if(triPoint == 0)
+				for(int y = 0; y < size - 1; y++)
 				{
-					// First point of triangle is direct
-					results[i] = triIndex;
-				}
-				else
-				{
-					int square = triIndex / 2;
-					square *= 2;
-
-					// Move to next Y
-					int index = square + size;
-					// Go backwards - clockwise
-					index -= triPoint - 1;
-					// Compensate
-					index += 1;
-
-					results[i] = index;
+					for(int x = 0; x < size - 1; x++)
+					{
+						results.Add(Pos(x, y, size));
+						results.Add(Pos(x + 1, y + 1, size));
+						results.Add(Pos(x + 1, y, size));
+						
+						results.Add(Pos(x + 1, y + 1, size));
+						results.Add(Pos(x, y, size));
+						results.Add(Pos(x, y + 1, size));
+					}
 				}
 			}
+
+			[BurstCompile]
+			private static int Pos(int x, int y, int size) => x + (y * size);
 		}
 
 		[BurstCompile]

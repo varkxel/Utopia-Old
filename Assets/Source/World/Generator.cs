@@ -70,7 +70,11 @@ namespace Utopia.World
 			// Initialise random
 			random.InitState(seed);
 		}
-		
+
+		private void OnDestroy() {
+			heightmap.DestroyOffsets();
+		}
+
 		public void GenerateMask()
 		{
 			// Generate data for shader & dispatch shader
