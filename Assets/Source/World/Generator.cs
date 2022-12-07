@@ -44,6 +44,8 @@ namespace Utopia.World
 		public int worldSize = 4096;
 		[Range(16, 128)]
 		public int chunkSize = 128;
+
+		[SerializeField] internal Material chunkMaterial;
 		
 		// Mask
 		[Header("Mask")]
@@ -71,8 +73,24 @@ namespace Utopia.World
 			random.InitState(seed);
 		}
 
-		private void OnDestroy() {
+		private void OnDestroy()
+		{
 			heightmap.DestroyOffsets();
+			maskData.Dispose();
+		}
+
+		private void Start() => Generate();
+		
+		public void Generate()
+		{
+			GenerateMask();
+			
+			// Generate everything, for now.
+			for(int x = 0; x < worldSize / chunkSize; x++)
+			for(int y = 0; y < worldSize / chunkSize; y++)
+			{
+				GenerateChunk(new int2(x, y));
+			}
 		}
 
 		public void GenerateMask()
@@ -89,9 +107,15 @@ namespace Utopia.World
 		{
 			GameObject obj = new GameObject();
 			obj.transform.SetParent(transform);
+			
+			float3 position3D = new float3(position.x, 0.0f, position.y);
+			position3D *= chunkSize;
+			obj.transform.localPosition = position3D;
+			
 			obj.name = $"Chunk ({position.x.ToString()}, {position.y.ToString()})";
 
 			Chunk chunk = Chunk.Create(obj, position);
+			chunk.Generate();
 			return chunk;
 		}
 	}

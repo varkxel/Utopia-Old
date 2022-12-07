@@ -17,6 +17,10 @@ namespace Utopia.World
 
 		internal static Chunk Create(GameObject obj, int2 index)
 		{
+			obj.AddComponent<MeshFilter>();
+			MeshRenderer renderer = obj.AddComponent<MeshRenderer>();
+			renderer.material = Generator.instance.chunkMaterial;
+			
 			Chunk chunk = obj.AddComponent<Chunk>();
 			chunk.index = index;
 			chunk.size = Generator.instance.chunkSize;
@@ -24,10 +28,6 @@ namespace Utopia.World
 			chunk.Generate();
 			return chunk;
 		}
-
-		private int MeshSize => size + 1;
-
-		private void Start() { Generate(); }
 
 		public void Generate()
 		{

@@ -17,7 +17,6 @@ namespace Utopia.World.BiomeTypes
 		{
 			WriteJob writeJob = new WriteJob()
 			{
-				chunk = chunk,
 				chunkSize = chunkSize,
 				layer = layer,
 				map = map
@@ -32,7 +31,6 @@ namespace Utopia.World.BiomeTypes
 			public int layer;
 			
 			// Chunk position info
-			public int2 chunk;
 			public int chunkSize;
 			
 			// Output
@@ -40,8 +38,7 @@ namespace Utopia.World.BiomeTypes
 			
 			public void Execute(int index)
 			{
-				int2 position = chunk * chunkSize;
-				position += new int2(index % chunkSize, index / chunkSize);
+				int2 position = new int2(index % chunkSize, index / chunkSize);
 
 				map[position.x + position.y * chunkSize] = layer;
 			}
