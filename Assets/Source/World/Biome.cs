@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Utopia.World
@@ -10,6 +11,7 @@ namespace Utopia.World
 
 		public AnimationCurve heightMultiplier = AnimationCurve.Linear(0.0f, 0.0f, 1.0f, 1.0f);
 
-		public abstract void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map);
+		public abstract JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous);
+		public virtual void OnCompleted() {}
 	}
 }

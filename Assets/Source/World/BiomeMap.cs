@@ -1,9 +1,9 @@
 using UnityEngine;
-using UnityEngine.Profiling;
 using Unity.Collections;
 using Unity.Mathematics;
 
 using System.Collections.Generic;
+using Unity.Jobs;
 
 namespace Utopia.World
 {
@@ -14,6 +14,8 @@ namespace Utopia.World
 		
 		[Header("Biome List")]
 		public List<Biome> biomes = new List<Biome>();
+		
+		private NativeList<JobHandle> handles;
 		
 		/// <summary>
 		/// Generates a map using the stored biome spawn rule list.
@@ -27,8 +29,10 @@ namespace Utopia.World
 		/// </param>
 		public void GenerateChunk(in int2 chunk, int chunkSize, ref NativeArray<int> map)
 		{
-			Profiler.BeginSample("Generate Biome Map");
-			for(int i = 0; i < biomes.Count; i++)
+			int biomeCount = biomes.Count;
+
+			handles = new NativeList<JobHandle>(biomeCount, Allocator.TempJob);
+			for(int i = 0; i < biomeCount; i++)
 			{
 				#if UNITY_EDITOR || DEVELOPMENT_BUILD
 				// Biome null check for editor only, as it's an expensive operation.
@@ -39,15 +43,33 @@ namespace Utopia.World
 						// Throw warning message if not in-editor.
 						Debug.LogWarning($"Tried to generate chunk from {nameof(BiomeMap)} \"{name}\" with a null biome set at index {i.ToString()}.");
 					}
-					continue;
+					return;
 				}
 				#endif
 
-				Profiler.BeginSample($"Layer {biomes[i].name}");
-				biomes[i].Spawn(chunk, chunkSize, i, ref map);
-				Profiler.EndSample();
+				JobHandle? previous = i > 0 ? handles[i - 1] : null;
+				handles.Add(biomes[i].Spawn(chunk, chunkSize, i, map, previous));
 			}
-			Profiler.EndSample();
+		}
+
+		public bool IsComplete()
+		{
+			for(int i = 0; i < handles.Length; i++)
+			{
+				if(!handles[i].IsCompleted) return false;
+			}
+			return true;
+		}
+
+		public void OnCompleted()
+		{
+			handles.Dispose();
+			
+			// Free biome data
+			for(int i = 0; i < biomes.Count; i++)
+			{
+				biomes[i].OnCompleted();
+			}
 		}
 	}
 }

@@ -13,7 +13,7 @@ namespace Utopia.World.BiomeTypes
 	[CreateAssetMenu(menuName = AssetPath + "Global Biome")]
 	public class GlobalBiome : Biome
 	{
-		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+		public override JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous)
 		{
 			WriteJob writeJob = new WriteJob()
 			{
@@ -22,7 +22,11 @@ namespace Utopia.World.BiomeTypes
 				layer = layer,
 				map = map
 			};
-			writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize)).Complete();
+
+			// Pass previous biome spawn job as dependency if provided
+			return previous == null
+				? writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize))
+				: writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize), previous.Value);
 		}
 		
 		[BurstCompile]

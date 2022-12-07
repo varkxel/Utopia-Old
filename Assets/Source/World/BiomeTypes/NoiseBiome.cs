@@ -18,14 +18,16 @@ namespace Utopia.World.BiomeTypes
 		[Header("Threshold")]
 		[Range(0.0f, 1.0f)] public double threshold = 0.5f;
 		public ThresholdOperation thresholdOperation = ThresholdOperation.GreaterEqual;
-		
-		public override void Spawn(in int2 chunk, int chunkSize, int layer, ref NativeArray<int> map)
+
+		private NativeArray<double> noiseMap;
+
+		public override JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous)
 		{
 			int chunkLength = chunkSize * chunkSize;
 			
 			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);
 			
-			NativeArray<double> noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
+			noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
 			noiseJob.result = noiseMap;
 			JobHandle noiseJobHandle = noiseJob.Schedule(chunkLength, 4);
 			
@@ -41,7 +43,18 @@ namespace Utopia.World.BiomeTypes
 				map = map,
 				noise = noiseMap
 			};
-			writeJob.Schedule(chunkLength, math.min(64, chunkSize), noiseJobHandle).Complete();
+
+			JobHandle dependency = noiseJobHandle;
+			if(previous != null)
+			{
+				dependency = JobHandle.CombineDependencies(dependency, previous.Value);
+			}
+			JobHandle handle = writeJob.Schedule(chunkLength, math.min(64, chunkSize), dependency);
+			return handle;
+		}
+
+		public override void OnCompleted()
+		{
 			noiseMap.Dispose();
 		}
 		

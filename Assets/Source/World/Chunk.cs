@@ -27,8 +27,8 @@ namespace Utopia.World
 
 		private int MeshSize => size + 1;
 
-		private void Start() { Generate(); }
-
+		
+		
 		public void Generate()
 		{
 			Generator generator = Generator.instance;
