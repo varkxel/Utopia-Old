@@ -33,25 +33,11 @@ namespace Utopia.World
 		{
 			Generator generator = Generator.instance;
 
-			NativeArray<double> heightmap = new NativeArray<double>(size * size, Allocator.TempJob);
-			generator.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapGenerator);
+			JobHandle heightmapJob = GenerateHeightmap();
+			JobHandle indicesJob = GenerateIndices();
+			JobHandle biomeJob = GenerateBiomes();
 
-			heightmapGenerator.result = heightmap;
-			JobHandle heightmapJob = heightmapGenerator.Schedule(heightmap.Length, 4);
-
-			NativeList<int> indices = new NativeList<int>(Allocator.TempJob);
-			IndicesJob indicesJobData = new IndicesJob()
-			{
-				size = size,
-				results = indices
-			};
-			JobHandle indicesJob = indicesJobData.Schedule();
-
-			NativeArray<int> biomeMap = new NativeArray<int>(size * size, Allocator.TempJob);
-			generator.biomes.GenerateChunk(index, size, ref biomeMap);
-
-			// Has to be single threaded unfortunately,
-			// Should change the biome system to use structs / function pointers.
+			// Has to be single threaded unfortunately until a burst compatible animation curve is implemented.
 			NativeArray<float> heightmapMultiplier = new NativeArray<float>(biomeMap.Length, Allocator.TempJob);
 			heightmapJob.Complete();
 			for(int i = 0; i < biomeMap.Length; i++)
@@ -89,6 +75,39 @@ namespace Utopia.World
 			heightmap.Dispose();
 		}
 
+		private NativeArray<double> heightmap;
+
+		private JobHandle GenerateHeightmap()
+		{
+			heightmap = new NativeArray<double>(size * size, Allocator.TempJob);
+			
+			Generator.instance.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapGenerator);
+			heightmapGenerator.result = heightmap;
+			
+			return heightmapGenerator.Schedule(heightmap.Length, 4);
+		}
+
+		private NativeList<int> indices;
+
+		private JobHandle GenerateIndices()
+		{
+			indices = new NativeList<int>(Allocator.TempJob);
+			IndicesJob indicesJobData = new IndicesJob()
+			{
+				size = size,
+				results = indices
+			};
+			return indicesJobData.Schedule();
+		}
+
+		private NativeArray<int> biomeMap;
+
+		private JobHandle GenerateBiomes()
+		{
+			biomeMap = new NativeArray<int>(size * size, Allocator.TempJob);
+			return Generator.instance.biomes.GenerateChunk(index, size, ref biomeMap);
+		}
+		
 		[BurstCompile]
 		private struct IndicesJob : IJob
 		{
