@@ -3,6 +3,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 using static Unity.Mathematics.math;
 using Utopia.Noise;
@@ -35,24 +36,14 @@ namespace Utopia.World
 
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle indicesJob = GenerateIndices();
-			JobHandle biomeJob = GenerateBiomes();
-
-			// Has to be single threaded unfortunately until a burst compatible animation curve is implemented.
-			NativeArray<float> heightmapMultiplier = new NativeArray<float>(biomeMap.Length, Allocator.TempJob);
-			heightmapJob.Complete();
-			for(int i = 0; i < biomeMap.Length; i++)
-			{
-				heightmapMultiplier[i] = generator.biomes.biomes[biomeMap[i]].heightMultiplier.Evaluate((float) heightmap[i]);
-			}
-			biomeMap.Dispose();
+			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeJobCallback);
 
 			NativeArray<float3> vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
 			VertexJob vertexJobData = new VertexJob()
 			{
 				size = size,
 				heights = heightmap,
-				vertices = vertices,
-				biomeMultiplier = heightmapMultiplier
+				vertices = vertices
 			};
 			// TODO add heightmap multiplier job as dependency in the future - once it exists.
 			JobHandle vertexJob = vertexJobData.Schedule(size * size, size, heightmapJob);
@@ -71,7 +62,6 @@ namespace Utopia.World
 
 			vertices.Dispose();
 			indices.Dispose();
-			heightmapMultiplier.Dispose();
 			heightmap.Dispose();
 		}
 
@@ -100,13 +90,16 @@ namespace Utopia.World
 			return indicesJobData.Schedule();
 		}
 
-		private NativeArray<int> biomeMap;
+		private NativeArray<float4> biomeMap;
 
-		private JobHandle GenerateBiomes()
-		{
-			biomeMap = new NativeArray<int>(size * size, Allocator.TempJob);
-			return Generator.instance.biomes.GenerateChunk(index, size, ref biomeMap);
-		}
+		private JobHandle GenerateBiomes(out UnityAction completionCallback)
+			=> Generator.instance.biomes.GenerateChunk
+		(
+			index, size,
+			out biomeMap,
+			out completionCallback,
+			persistent: false
+		);
 		
 		[BurstCompile]
 		private struct IndicesJob : IJob
@@ -141,8 +134,6 @@ namespace Utopia.World
 			public int size;
 
 			[ReadOnly]  public NativeArray<double> heights;
-			[ReadOnly]  public NativeArray<float> biomeMultiplier;
-
 			[WriteOnly] public NativeArray<float3> vertices;
 
 			public void Execute(int index)
@@ -150,7 +141,6 @@ namespace Utopia.World
 				int2 index2D = int2(index % size, index / size);
 
 				float val = (float) heights[index];
-				val *= biomeMultiplier[index];
 				vertices[index] = float3(index2D.x, val, index2D.y);
 			}
 		}

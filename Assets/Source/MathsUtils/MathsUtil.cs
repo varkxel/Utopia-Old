@@ -1,9 +1,9 @@
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
-
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
 namespace MathsUtils
@@ -11,6 +11,25 @@ namespace MathsUtils
 	[BurstCompile]
 	public static class MathsUtil
 	{
+		public static void ToVec(in float4 vector, out v128 register)
+		{
+			if(!X86.Sse.IsSseSupported)
+			{
+				// Probably won't get called, probably won't work either.
+				register = new v128(vector.x, vector.y, vector.z, vector.w);
+				return;
+			}
+			unsafe
+			{
+				// Generate vector, should get condensed.
+				float* vecData = stackalloc float[4];
+				for(int i = 0; i < 4; i++) vecData[i] = vector[i];
+				register = X86.Sse.load_ps(vecData);
+			}
+		}
+		
+		#region MinMax
+		
 		public const int MinMax_MaxBatch = AVXUtils.MinMax_batchSize;
 
 		[BurstCompile]
@@ -61,6 +80,40 @@ namespace MathsUtils
 				}
 				minMax[0] = minimum;
 				minMax[1] = maximum;
+			}
+		}
+		
+		#endregion
+		
+		[BurstCompile]
+		public static float MinItem(in float4 items)
+		{
+			if(X86.Sse2.IsSse2Supported)
+			{
+				ToVec(items, out v128 vec);
+				return X86.Sse4_1.IsSse41Supported ? SSE4Utils.ReduceMin(vec) : SSE2Utils.ReduceMin(vec);
+			}
+			else
+			{
+				float minimum = float.MaxValue;
+				for(int i = 0; i < 4; i++) minimum = min(minimum, items[i]);
+				return minimum;
+			}
+		}
+		
+		[BurstCompile]
+		public static float MaxItem(in float4 items)
+		{
+			if(X86.Sse2.IsSse2Supported)
+			{
+				ToVec(items, out v128 vec);
+				return X86.Sse4_1.IsSse41Supported ? SSE4Utils.ReduceMax(vec) : SSE2Utils.ReduceMax(vec);
+			}
+			else
+			{
+				float maximum = float.MaxValue;
+				for(int i = 0; i < 4; i++) maximum = max(maximum, items[i]);
+				return maximum;
 			}
 		}
 	}

@@ -13,38 +13,30 @@ namespace Utopia.World.BiomeTypes
 	[CreateAssetMenu(menuName = AssetPath + "Global Biome")]
 	public class GlobalBiome : Biome
 	{
-		public override JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous)
+		public float threshold = 0.2f;
+
+		public override JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result)
 		{
 			WriteJob writeJob = new WriteJob()
 			{
-				chunkSize = chunkSize,
-				layer = layer,
-				map = map
+				threshold = this.threshold,
+				map = result
 			};
-
-			// Pass previous biome spawn job as dependency if provided
-			return previous == null
-				? writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize))
-				: writeJob.Schedule(chunkSize * chunkSize, math.min(64, chunkSize), previous.Value);
+			return writeJob.Schedule(chunkSize * chunkSize, math.min(chunkSize, 128));
 		}
-		
+
 		[BurstCompile]
 		private struct WriteJob : IJobParallelFor
 		{
-			// Current layer
-			public int layer;
-			
-			// Chunk position info
-			public int chunkSize;
-			
+			// Input
+			public float threshold;
+
 			// Output
-			[WriteOnly] public NativeArray<int> map;
-			
+			[WriteOnly] public NativeSlice<double> map;
+
 			public void Execute(int index)
 			{
-				int2 position = new int2(index % chunkSize, index / chunkSize);
-
-				map[position.x + position.y * chunkSize] = layer;
+				map[index] = threshold;
 			}
 		}
 	}

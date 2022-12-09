@@ -11,7 +11,7 @@ namespace Utopia.World
 
 		public AnimationCurve heightMultiplier = AnimationCurve.Linear(0.0f, 0.0f, 1.0f, 1.0f);
 
-		public abstract JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous);
+		public abstract JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result);
 		public virtual void OnCompleted() {}
 	}
 }

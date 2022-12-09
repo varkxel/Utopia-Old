@@ -2,9 +2,13 @@ using System;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
+using static Unity.Mathematics.math;
 
 using System.Collections.Generic;
+using MathsUtils;
+using Unity.Burst;
 using Unity.Jobs;
+using UnityEngine.Events;
 
 namespace Utopia.World
 {
@@ -26,9 +30,25 @@ namespace Utopia.World
 		/// The map to generate the biome map into.
 		/// Needs to be chunkSize * chunkSize length.
 		/// </param>
-		public JobHandle GenerateChunk(in int2 chunk, int chunkSize, ref NativeArray<int> map)
+		public JobHandle GenerateChunk
+		(
+			in int2 chunk, int chunkSize, out NativeArray<float4> map,
+			out UnityAction completionCallback, bool persistent = false
+		)
 		{
+			int arrayLength = chunkSize * chunkSize;
+			map = new NativeArray<float4>
+			(
+				arrayLength,
+				persistent ? Allocator.Persistent : Allocator.TempJob,
+				NativeArrayOptions.UninitializedMemory
+			);
+			for(int i = 0; i < arrayLength; i++) map[i] = -1.0f;
+			
 			int biomeCount = biomes.Count;
+
+			NativeArray<double> weightingData = new NativeArray<double>(arrayLength * biomeCount, Allocator.TempJob);
+			
 			JobHandle? previous = null;
 			for(int i = 0; i < biomeCount; i++)
 			{
@@ -41,9 +61,54 @@ namespace Utopia.World
 				}
 				#endif
 
-				previous = biomes[i].Spawn(chunk, chunkSize, i, map, previous);
+				NativeSlice<double> weighting = weightingData.Slice(i * arrayLength, arrayLength);
+				JobHandle weightingJob = biomes[i].CalculateWeighting(chunk, chunkSize, weighting);
+
+				PackJob packJob = new PackJob()
+				{
+					biomeIndex = i,
+					biomeWeighting = weighting,
+					biomes = map
+				};
+				JobHandle dependency = weightingJob;
+				if(previous != null) dependency = JobHandle.CombineDependencies(dependency, previous.Value);
+
+				JobHandle packJobHandle = packJob.Schedule(arrayLength, 4, dependency);
+				previous = packJobHandle;
 			}
+
+			completionCallback = () => weightingData.Dispose();
 			return previous ?? default;
+		}
+
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		private struct PackJob : IJobParallelFor
+		{
+			public int biomeIndex;
+			[ReadOnly] public NativeSlice<double> biomeWeighting;
+
+			public NativeArray<float4> biomes;
+
+			public void Execute(int index)
+			{
+				float4 result = biomes[index];
+				float4 weights = result;
+				weights = frac(weights);
+
+				float4 comparison = new float4(biomeWeighting[index]);
+				bool4 isGreater = comparison > weights;
+				bool4 smallestWeight = abs(weights - MathsUtil.MinItem(weights)) < EPSILON;
+
+				bool4 replace = isGreater & smallestWeight;
+				result = select(result, comparison, replace);
+
+				float4 biomeIndexVec = new float4(biomeIndex);
+				float4 replaceMask = (float4) replace;
+				biomeIndexVec *= replaceMask;
+				result += biomeIndexVec;
+
+				biomes[index] = result;
+			}
 		}
 
 		public void OnCompleted()

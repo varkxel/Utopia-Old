@@ -5,7 +5,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using Utopia.Noise;
-using MathsUtils;
 
 namespace Utopia.World.BiomeTypes
 {
@@ -14,81 +13,58 @@ namespace Utopia.World.BiomeTypes
 	{
 		[Header("Noise Map")]
 		public NoiseMap2D noise;
-		
+
 		[Header("Threshold")]
 		[Range(0.0f, 1.0f)] public double threshold = 0.5f;
-		public ThresholdOperation thresholdOperation = ThresholdOperation.GreaterEqual;
+		public NoiseBiomeOperation operation;
 
-		private NativeArray<double> noiseMap;
+		private NativeArray<double> resultsCopy;
 
-		public override JobHandle Spawn(in int2 chunk, int chunkSize, int layer, NativeArray<int> map, JobHandle? previous)
+		public override JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result)
 		{
-			int chunkLength = chunkSize * chunkSize;
-			
+			int arrayLength = chunkSize * chunkSize;
+
 			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);
-			
-			noiseMap = new NativeArray<double>(chunkLength, Allocator.TempJob);
-			noiseJob.result = noiseMap;
-			JobHandle noiseJobHandle = noiseJob.Schedule(chunkLength, 4);
-			
+
+			resultsCopy = new NativeArray<double>
+			(
+				result.Length, Allocator.TempJob,
+				NativeArrayOptions.UninitializedMemory
+			);
+			result.CopyTo(resultsCopy);
+
+			noiseJob.result = resultsCopy;
+
+			JobHandle noiseHandle = noiseJob.Schedule(arrayLength, 4);
 			WriteJob writeJob = new WriteJob()
 			{
-				layer = layer,
-				chunk = chunk,
-				chunkSize = chunkSize,
-				
-				threshold = this.threshold,
-				thresholdOperation = thresholdOperation.GetOperation(),
-				
-				map = map,
-				noise = noiseMap
-			};
+				noise = resultsCopy,
+				result = result,
 
-			JobHandle dependency = noiseJobHandle;
-			if(previous != null)
-			{
-				dependency = JobHandle.CombineDependencies(dependency, previous.Value);
-			}
-			JobHandle handle = writeJob.Schedule(chunkLength, math.min(64, chunkSize), dependency);
-			return handle;
+				threshold = this.threshold,
+				operation = this.operation.GetOperation()
+			};
+			return writeJob.Schedule(arrayLength, math.min(chunkSize, 32), noiseHandle);
 		}
 
 		public override void OnCompleted()
 		{
-			noiseMap.Dispose();
+			base.OnCompleted();
+			resultsCopy.Dispose();
 		}
-		
+
 		[BurstCompile]
 		private struct WriteJob : IJobParallelFor
 		{
-			// Current layer
-			public int layer;
-			
-			// Chunk position info
-			public int2 chunk;
-			public int chunkSize;
-			
-			// Noise map
 			public double threshold;
-			public FunctionPointer<ThresholdOperations.Delegate> thresholdOperation;
-			[ReadOnly] public NativeArray<double> noise;
-			
-			// Output
-			[WriteOnly] public NativeArray<int> map;
-			
-			public void Execute(int i)
+			public FunctionPointer<NoiseBiomeOperations.Operation> operation;
+
+			[ReadOnly]  public NativeArray<double> noise;
+			[WriteOnly] public NativeSlice<double> result;
+
+			public void Execute(int index)
 			{
-				int2 position = chunk * chunkSize;
-				position += new int2(i % chunkSize, i / chunkSize);
-				
-				int index = position.x + position.y * chunkSize;
-				
-				double noiseVal = noise[index];
-				if(thresholdOperation.Invoke(noiseVal, threshold))
-				{
-					// Set map to current layer if selected operation is true
-					map[index] = layer;
-				}
+				result[index] = operation.Invoke(noise[index], threshold);
 			}
 		}
 	}
