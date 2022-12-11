@@ -32,8 +32,6 @@ namespace Utopia.World
 
 		public void Generate()
 		{
-			Generator generator = Generator.instance;
-
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle indicesJob = GenerateIndices();
 			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeJobCallback);
