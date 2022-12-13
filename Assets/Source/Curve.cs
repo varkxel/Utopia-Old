@@ -1,58 +1,36 @@
+using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
-using Stella3D;
-
 namespace Utopia
 {
-	[BurstCompile, System.Serializable]
-	public class Curve : System.IDisposable
+	[BurstCompile]
+	public struct Curve : System.IDisposable
 	{
-		public float[] _x = new float[] { 0.0f, 1.0f };
-		public float[] _y = new float[] { 0.0f, 1.0f };
-		public float[] _tangentIn = new float[] { 0.0f, 1.0f };
-		public float[] _tangentOut = new float[] { 1.0f, 0.0f };
+		public int length;
+		public NativeArray<float> x;
+		public NativeArray<float> y;
+		public NativeArray<float> tangentIn;
+		public NativeArray<float> tangentOut;
 
-		public SharedArray<float> x;
-		public SharedArray<float> y;
-		public SharedArray<float> tangentIn;
-		public SharedArray<float> tangentOut;
-
-		public unsafe struct RawData
+		public Curve(AnimationCurve curve, Allocator allocator)
 		{
-			public int length;
-			public float* x;
-			public float* y;
-			public float* tangentIn;
-			public float* tangentOut;
-		}
-
-		public unsafe RawData GetRawData()
-		{
-			NativeArray<float> xNative = x;
-			NativeArray<float> yNative = y;
-			NativeArray<float> tInNative = tangentIn;
-			NativeArray<float> tOutNative = tangentOut;
-
-			return new RawData()
+			length = curve.length;
+			x = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
+			y = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
+			tangentIn = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
+			tangentOut = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
+			
+			for(int i = 0; i < length; i++)
 			{
-				length = x.Length,
-				x = (float*) xNative.GetUnsafeReadOnlyPtr(),
-				y = (float*) yNative.GetUnsafeReadOnlyPtr(),
-				tangentIn = (float*) tInNative.GetUnsafeReadOnlyPtr(),
-				tangentOut = (float*) tOutNative.GetUnsafeReadOnlyPtr()
-			};
-		}
-
-		public void Initialise()
-		{
-			x = new SharedArray<float>(_x);
-			y = new SharedArray<float>(_y);
-			tangentIn = new SharedArray<float>(_tangentIn);
-			tangentOut = new SharedArray<float>(_tangentOut);
+				Keyframe key = curve.keys[i];
+				x[i] = key.time;
+				y[i] = key.value;
+				tangentIn[i] = key.inTangent;
+				tangentOut[i] = key.outTangent;
+			}
 		}
 
 		public void Dispose()
@@ -63,24 +41,24 @@ namespace Utopia
 			tangentOut.Dispose();
 		}
 
-		public float Evaluate(float point)
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
+		public static unsafe float Evaluate
+		(
+			float point, int length,
+			[ReadOnly] float* x, [ReadOnly] float* y,
+			[ReadOnly] float* tangentIn, [ReadOnly] float* tangentOut
+		)
 		{
-			return Evaluate(point, GetRawData());
-		}
+			if(point <= x[0]) return y[0];
 
-		[BurstCompile]
-		public static unsafe float Evaluate(float point, in RawData data)
-		{
-			if(point <= data.x[0]) return data.y[0];
-
-			int lastElement = data.length - 1;
-			if(point >= data.x[lastElement]) return data.y[lastElement - 1];
+			int lastElement = length - 1;
+			if(point >= x[lastElement]) return y[lastElement - 1];
 
 			int leftSample = 0;
 			int rightSample = 0;
-			for(int i = 0; i < data.length - 1; i++)
+			for(int i = 0; i < length - 1; i++)
 			{
-				if(data.x[i] <= point)
+				if(x[i] <= point)
 				{
 					leftSample = i;
 					rightSample = i + 1;
@@ -89,13 +67,13 @@ namespace Utopia
 
 			return EvaluateInterval
 			(
-				data.x[leftSample], data.x[rightSample], point,
-				data.y[leftSample], data.y[rightSample],
-				data.tangentOut[leftSample], data.tangentIn[rightSample]
+				x[leftSample], x[rightSample], point,
+				y[leftSample], y[rightSample],
+				tangentOut[leftSample], tangentIn[rightSample]
 			);
 		}
 
-		[BurstCompile]
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private static float EvaluateInterval
 		(
 			// X Val

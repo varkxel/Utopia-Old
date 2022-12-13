@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
@@ -5,13 +6,24 @@ using Unity.Mathematics;
 
 namespace Utopia.World
 {
-	public abstract class Biome : ScriptableObject
+	public abstract class Biome : ScriptableObject, IDisposable
 	{
 		internal const string AssetPath = BiomeMap.AssetPath + "Types/";
 
-		public Curve heightmapModifier = new Curve();
+		[SerializeField]
+		private AnimationCurve _heightmapModifier = AnimationCurve.Linear(0.0f, 0.0f, 1.0f, 1.0f);
+		public Curve heightmapModifier;
+
+		public virtual void Initialise()
+		{
+			heightmapModifier = new Curve(_heightmapModifier, Allocator.Persistent);
+		}
+
+		public virtual void Dispose()
+		{
+			heightmapModifier.Dispose();
+		}
 
 		public abstract JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result);
-		public virtual void OnCompleted() {}
 	}
 }
