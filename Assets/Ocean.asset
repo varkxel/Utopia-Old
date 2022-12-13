@@ -12,27 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70eb45308ba44cd9a7efc67a2fb5467f, type: 3}
   m_Name: Ocean
   m_EditorClassIdentifier: 
-  heightMultiplier:
+  heightmapModifier:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 0
-      inSlope: 25
-      outSlope: 25
-      tangentMode: 34
+      inSlope: 5.8630433
+      outSlope: 1.000733
+      tangentMode: 65
       weightedMode: 0
       inWeight: 0
-      outWeight: 0.33333334
+      outWeight: 0.0155510465
     - serializedVersion: 3
-      time: 1
-      value: 25
-      inSlope: 25
-      outSlope: 25
-      tangentMode: 34
+      time: 0.9992676
+      value: 1
+      inSlope: 1613.349
+      outSlope: 7.4254985
+      tangentMode: 1
       weightedMode: 0
-      inWeight: 0.33333334
+      inWeight: 0.000620283
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  threshold: 0.2

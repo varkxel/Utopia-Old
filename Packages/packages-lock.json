@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.stella3d.sharedarray": {
+      "version": "https://github.com/stella3d/SharedArray.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "f664d04ff8d014cc4b8600e8d6cf519a8531f1c5"
+    },
     "com.unity.burst": {
       "version": "1.7.2",
       "depth": 1,
@@ -58,7 +65,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {
-      "version": "2.0.16",
+      "version": "2.0.17",
       "depth": 0,
       "source": "registry",
       "dependencies": {

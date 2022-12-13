@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f12e24c262134c1c84648661492e8eb9, type: 3}
   m_Name: Land
   m_EditorClassIdentifier: 
+  heightmapModifier:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   noise: {fileID: 11400000, guid: 68608c24b52d84975a81781742217594, type: 2}
   threshold: 0.5379999876022339
-  thresholdOperation: 2
+  operation: 0

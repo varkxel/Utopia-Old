@@ -1,16 +1,100 @@
+using UnityEngine;
 using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
+using Stella3D;
+
 namespace Utopia
 {
-	/*
-	 * Designed on this curve implementation by 5argon:
-	 * https://github.com/5argon/JobAnimationCurve/blob/master/JobAnimationCurve.cs
-	 */
-	[System.Serializable, BurstCompile]
-	public struct Curve
+	[BurstCompile, System.Serializable]
+	public class Curve : System.IDisposable
 	{
+		public float[] _x;
+		public float[] _y;
+		public float[] _tangentIn;
+		public float[] _tangentOut;
+
+		public SharedArray<float> x;
+		public SharedArray<float> y;
+		public SharedArray<float> tangentIn;
+		public SharedArray<float> tangentOut;
+
+		public unsafe struct RawData
+		{
+			public int length;
+			public float* x;
+			public float* y;
+			public float* tangentIn;
+			public float* tangentOut;
+		}
+
+		public unsafe RawData GetRawData()
+		{
+			NativeArray<float> xNative = x;
+			NativeArray<float> yNative = y;
+			NativeArray<float> tInNative = tangentIn;
+			NativeArray<float> tOutNative = tangentOut;
+
+			return new RawData()
+			{
+				length = x.Length,
+				x = (float*) xNative.GetUnsafeReadOnlyPtr(),
+				y = (float*) yNative.GetUnsafeReadOnlyPtr(),
+				tangentIn = (float*) tInNative.GetUnsafeReadOnlyPtr(),
+				tangentOut = (float*) tOutNative.GetUnsafeReadOnlyPtr()
+			};
+		}
+
+		public void Initialise()
+		{
+			x = new SharedArray<float>(_x);
+			y = new SharedArray<float>(_y);
+			tangentIn = new SharedArray<float>(_tangentIn);
+			tangentOut = new SharedArray<float>(_tangentOut);
+		}
+
+		public void Dispose()
+		{
+			x.Dispose();
+			y.Dispose();
+			tangentIn.Dispose();
+			tangentOut.Dispose();
+		}
+
+		public float Evaluate(float point)
+		{
+			return Evaluate(point, GetRawData());
+		}
+
+		[BurstCompile]
+		public static unsafe float Evaluate(float point, in RawData data)
+		{
+			if(point <= data.x[0]) return data.y[0];
+
+			int lastElement = data.length - 1;
+			if(point >= data.x[lastElement]) return data.y[lastElement - 1];
+
+			int leftSample = 0;
+			int rightSample = 0;
+			for(int i = 1; i < lastElement; i++)
+			{
+				if(point <= data.x[i]) break;
+				
+				leftSample = i - 1;
+				rightSample = i;
+			}
+
+			return EvaluateInterval
+			(
+				data.x[leftSample], data.x[rightSample], point,
+				data.y[leftSample], data.y[rightSample],
+				data.tangentOut[leftSample], data.tangentIn[rightSample]
+			);
+		}
+
 		[BurstCompile]
 		private static float EvaluateInterval
 		(
@@ -22,6 +106,11 @@ namespace Utopia
 			float tLeft, float tRight
 		)
 		{
+			/*
+				Designed on this curve implementation by 5argon:
+				https://github.com/5argon/JobAnimationCurve/blob/master/JobAnimationCurve.cs
+			*/
+
 			float interpolation = unlerp(xLeft, xRight, xInterpolation);
 			float xDifference = xRight - xLeft;
 
