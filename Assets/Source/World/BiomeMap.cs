@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -7,18 +6,52 @@ using static Unity.Mathematics.math;
 using System.Collections.Generic;
 using MathsUtils;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Jobs;
 using UnityEngine.Events;
 
 namespace Utopia.World
 {
 	[CreateAssetMenu(menuName = AssetPath + "Biome Map", fileName = "Biome Map")]
-	public class BiomeMap : ScriptableObject
+	public class BiomeMap : ScriptableObject, System.IDisposable
 	{
 		internal const string AssetPath = Generator.AssetPath + "Biomes/";
 
 		[Header("Biome List")]
 		public List<Biome> biomes = new List<Biome>();
+
+		public NativeArray<Curve.RawData> curves;
+
+		public void Initialise()
+		{
+			curves = new NativeArray<Curve.RawData>(biomes.Count, Allocator.Persistent);
+			foreach(Biome biome in biomes)
+			{
+				biome.Initialise();
+			}
+		}
+
+		public void Dispose()
+		{
+			curves.Dispose();
+			
+			// Free biome data
+			foreach(Biome biome in biomes)
+			{
+				biome.Dispose();
+			}
+		}
+
+		public Biome[] GetBiomes(float4 map)
+		{
+			map = trunc(map);
+			Biome[] result = new Biome[4];
+			for(int i = 0; i < 4; i++)
+			{
+				result[i] = biomes[(int) map[i]];
+			}
+			return result;
+		}
 
 		/// <summary>
 		/// Generates a map using the stored biome spawn rule list.
@@ -57,7 +90,7 @@ namespace Utopia.World
 				if(biomes[i] == null)
 				{
 					// Throw warning message if not in-editor.
-					throw new NullReferenceException($"Tried to generate chunk from {nameof(BiomeMap)} \"{name}\" with a null biome set at index {i.ToString()}.");
+					throw new System.NullReferenceException($"Tried to generate chunk from {nameof(BiomeMap)} \"{name}\" with a null biome set at index {i.ToString()}.");
 				}
 				#endif
 
@@ -95,7 +128,7 @@ namespace Utopia.World
 				float4 weights = result;
 				weights = frac(weights);
 
-				float4 comparison = new float4(biomeWeighting[index]);
+				float4 comparison = new float4(clamp((float) biomeWeighting[index], 0.0f, 1.0f - EPSILON));
 				bool4 isGreater = comparison > weights;
 				bool4 smallestWeight = abs(weights - MathsUtil.MinItem(weights)) < EPSILON;
 
@@ -111,12 +144,37 @@ namespace Utopia.World
 			}
 		}
 
-		public void OnCompleted()
+		[BurstCompile]
+		private struct ModifierJob : IJobParallelFor
 		{
-			// Free biome data
-			for(int i = 0; i < biomes.Count; i++)
+			[ReadOnly] public NativeArray<float4> biomes;
+			[ReadOnly] public NativeArray<Curve.RawData> curves;
+
+			[ReadOnly]  public NativeArray<float> input;
+			[WriteOnly] public NativeArray<float> output;
+
+			public void Execute(int index)
 			{
-				biomes[i].OnCompleted();
+				// Get curve references
+				int4 biomeIndex = (int4) trunc(biomes[index]);
+				NativeArray<Curve.RawData> biomeCurves = new NativeArray<Curve.RawData>(4, Allocator.Temp);
+				for(int i = 0; i < 4; i++)
+				{
+					Loop.ExpectVectorized();
+					biomeCurves[i] = curves[biomeIndex[i]];
+				}
+
+				float4 samples = new float4();
+				for(int i = 0; i < 4; i++)
+				{
+					Loop.ExpectVectorized();
+					samples[i] = Curve.Evaluate(input[index], biomeCurves[i]);
+				}
+
+				float4 weights = frac(biomes[index]);
+				float minWeight = cmin(weights);
+				float maxWeight = cmax(weights);
+				weights = unlerp(minWeight, maxWeight, weights);
 			}
 		}
 	}

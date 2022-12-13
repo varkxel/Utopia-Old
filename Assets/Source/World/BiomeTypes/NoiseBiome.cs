@@ -47,9 +47,9 @@ namespace Utopia.World.BiomeTypes
 			return writeJob.Schedule(arrayLength, math.min(chunkSize, 32), noiseHandle);
 		}
 
-		public override void OnCompleted()
+		public override void Dispose()
 		{
-			base.OnCompleted();
+			base.Dispose();
 			resultsCopy.Dispose();
 		}
 

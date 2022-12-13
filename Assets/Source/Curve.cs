@@ -1,19 +1,38 @@
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
 namespace Utopia
 {
-	[BurstCompile]
+	[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 	public struct Curve : System.IDisposable
 	{
 		public int length;
-		public NativeArray<float> x;
-		public NativeArray<float> y;
-		public NativeArray<float> tangentIn;
-		public NativeArray<float> tangentOut;
+		[ReadOnly] public NativeArray<float> x;
+		[ReadOnly] public NativeArray<float> y;
+		[ReadOnly] public NativeArray<float> tangentIn;
+		[ReadOnly] public NativeArray<float> tangentOut;
+
+		public unsafe struct RawData
+		{
+			public int length;
+			[ReadOnly] public float* xPtr;
+			[ReadOnly] public float* yPtr;
+			[ReadOnly] public float* tInPtr;
+			[ReadOnly] public float* tOutPtr;
+		}
+
+		public unsafe RawData GetRawData() => new RawData()
+		{
+			length = this.length,
+			xPtr = (float*) x.GetUnsafeReadOnlyPtr(),
+			yPtr = (float*) y.GetUnsafeReadOnlyPtr(),
+			tInPtr = (float*) tangentIn.GetUnsafeReadOnlyPtr(),
+			tOutPtr = (float*) tangentOut.GetUnsafeReadOnlyPtr()
+		};
 
 		public Curve(AnimationCurve curve, Allocator allocator)
 		{
@@ -22,7 +41,7 @@ namespace Utopia
 			y = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 			tangentIn = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 			tangentOut = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
-			
+
 			for(int i = 0; i < length; i++)
 			{
 				Keyframe key = curve.keys[i];
@@ -42,23 +61,18 @@ namespace Utopia
 		}
 
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		public static unsafe float Evaluate
-		(
-			float point, int length,
-			[ReadOnly] float* x, [ReadOnly] float* y,
-			[ReadOnly] float* tangentIn, [ReadOnly] float* tangentOut
-		)
+		public static unsafe float Evaluate(float point, [ReadOnly] in RawData data)
 		{
-			if(point <= x[0]) return y[0];
+			if(point <= data.xPtr[0]) return data.yPtr[0];
 
-			int lastElement = length - 1;
-			if(point >= x[lastElement]) return y[lastElement - 1];
+			int lastElement = data.length - 1;
+			if(point >= data.xPtr[lastElement]) return data.yPtr[lastElement - 1];
 
 			int leftSample = 0;
 			int rightSample = 0;
-			for(int i = 0; i < length - 1; i++)
+			for(int i = 0; i < data.length - 1; i++)
 			{
-				if(x[i] <= point)
+				if(data.xPtr[i] <= point)
 				{
 					leftSample = i;
 					rightSample = i + 1;
@@ -67,9 +81,9 @@ namespace Utopia
 
 			return EvaluateInterval
 			(
-				x[leftSample], x[rightSample], point,
-				y[leftSample], y[rightSample],
-				tangentOut[leftSample], tangentIn[rightSample]
+				data.xPtr[leftSample], data.xPtr[rightSample], point,
+				data.yPtr[leftSample], data.yPtr[rightSample],
+				data.tOutPtr[leftSample], data.tInPtr[rightSample]
 			);
 		}
 

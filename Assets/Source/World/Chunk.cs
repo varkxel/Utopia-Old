@@ -35,6 +35,7 @@ namespace Utopia.World
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle indicesJob = GenerateIndices();
 			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeJobCallback);
+			
 
 			NativeArray<float3> vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
 			VertexJob vertexJobData = new VertexJob()

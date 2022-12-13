@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
@@ -6,7 +5,7 @@ using Unity.Mathematics;
 
 namespace Utopia.World
 {
-	public abstract class Biome : ScriptableObject, IDisposable
+	public abstract class Biome : ScriptableObject, System.IDisposable
 	{
 		internal const string AssetPath = BiomeMap.AssetPath + "Types/";
 
@@ -16,7 +15,7 @@ namespace Utopia.World
 
 		public virtual void Initialise()
 		{
-			heightmapModifier = new Curve(_heightmapModifier, Allocator.Persistent);
+			heightmapModifier = new Curve(_heightmapModifier, allocator: Allocator.Persistent);
 		}
 
 		public virtual void Dispose()
