@@ -144,7 +144,7 @@ namespace Utopia.World
 			}
 		}
 
-		[BurstCompile]
+		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private struct ModifierJob : IJobParallelFor
 		{
 			[ReadOnly] public NativeArray<float4> biomes;
@@ -153,10 +153,14 @@ namespace Utopia.World
 			[ReadOnly]  public NativeArray<float> input;
 			[WriteOnly] public NativeArray<float> output;
 
+			public float blend;
+
 			public void Execute(int index)
 			{
+				float4 biomeSample = biomes[index];
+
 				// Get curve references
-				int4 biomeIndex = (int4) trunc(biomes[index]);
+				int4 biomeIndex = (int4) trunc(biomeSample);
 				NativeArray<Curve.RawData> biomeCurves = new NativeArray<Curve.RawData>(4, Allocator.Temp);
 				for(int i = 0; i < 4; i++)
 				{
@@ -164,17 +168,32 @@ namespace Utopia.World
 					biomeCurves[i] = curves[biomeIndex[i]];
 				}
 
+				// Sample the curves
 				float4 samples = new float4();
 				for(int i = 0; i < 4; i++)
 				{
-					Loop.ExpectVectorized();
 					samples[i] = Curve.Evaluate(input[index], biomeCurves[i]);
 				}
 
-				float4 weights = frac(biomes[index]);
-				float minWeight = cmin(weights);
+				float4 weights = frac(biomeSample);
+
 				float maxWeight = cmax(weights);
-				weights = unlerp(minWeight, maxWeight, weights);
+				float4 difference = maxWeight - weights;
+
+				// Calculate which values should be blended between
+				bool4 shouldBlend = difference <= blend;
+				shouldBlend &= difference > 0.0f;	// Exclude itself
+
+				weights = unlerp(blend, EPSILON, difference);
+				
+				// Exclude out of threshold values
+				weights *= (float4) shouldBlend;
+
+				// Blend by weights
+				samples *= weights;
+				float val = csum(samples);
+				val /= csum(weights);
+				output[index] = val;
 			}
 		}
 	}
