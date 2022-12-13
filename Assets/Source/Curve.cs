@@ -1,4 +1,3 @@
-using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -12,10 +11,10 @@ namespace Utopia
 	[BurstCompile, System.Serializable]
 	public class Curve : System.IDisposable
 	{
-		public float[] _x;
-		public float[] _y;
-		public float[] _tangentIn;
-		public float[] _tangentOut;
+		public float[] _x = new float[] { 0.0f, 1.0f };
+		public float[] _y = new float[] { 0.0f, 1.0f };
+		public float[] _tangentIn = new float[] { 0.0f, 1.0f };
+		public float[] _tangentOut = new float[] { 1.0f, 0.0f };
 
 		public SharedArray<float> x;
 		public SharedArray<float> y;
@@ -79,12 +78,13 @@ namespace Utopia
 
 			int leftSample = 0;
 			int rightSample = 0;
-			for(int i = 1; i < lastElement; i++)
+			for(int i = 0; i < data.length - 1; i++)
 			{
-				if(point <= data.x[i]) break;
-				
-				leftSample = i - 1;
-				rightSample = i;
+				if(data.x[i] <= point)
+				{
+					leftSample = i;
+					rightSample = i + 1;
+				}
 			}
 
 			return EvaluateInterval
