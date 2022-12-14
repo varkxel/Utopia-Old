@@ -1,10 +1,13 @@
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using static Unity.Burst.Intrinsics.X86.Sse;
+using static Unity.Burst.Intrinsics.X86.Sse2;
 
 using Unity.Collections;
 
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
+using UnityEngine;
 
 namespace MathsUtils
 {
@@ -76,6 +79,22 @@ namespace MathsUtils
 				// Calculate the min/max for the registers
 				minRegister = min_ps(minRegister, valRegister);
 				maxRegister = max_ps(maxRegister, valRegister);
+			}
+		}
+
+		[BurstCompile]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void MakeUnique(in v128 vec, out v128 result)
+		{
+			v128 mask = new v128(1u, 1u, 1u, 1u);
+			result = vec;
+			
+			v128 shifted = vec;
+			for(uint i = 0; i < 3; i++)
+			{
+				shifted = srli_si128(shifted, 4);
+				v128 flipped = xor_si128(shifted, mask);
+				result = and_si128(result, flipped);
 			}
 		}
 	}

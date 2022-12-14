@@ -143,7 +143,7 @@ namespace Utopia.World
 
 				float4 comparison = new float4(clamp((float) biomeWeighting[index], 0.0f, 1.0f - EPSILON));
 				bool4 isGreater = comparison > weights;
-				bool4 smallestWeight = abs(weights - MathsUtil.MinItem(weights)) < EPSILON;
+				bool4 smallestWeight = abs(weights - cmin(weights)) < EPSILON;
 
 				bool4 replace = isGreater & smallestWeight;
 				bool replaced = false;

@@ -27,7 +27,47 @@ namespace MathsUtils
 				register = X86.Sse.load_ps(vecData);
 			}
 		}
-		
+
+		public static void ToVec(in bool4 vector, out v128 register)
+		{
+			uint4 vectorInt = (uint4) vector;
+			if(!X86.Sse2.IsSse2Supported)
+			{
+				register = new v128(vectorInt.x, vectorInt.y, vectorInt.z, vectorInt.w);
+				return;
+			}
+			unsafe
+			{
+				// Generate vector, should get condensed.
+				uint* vecData = stackalloc uint[4];
+				for(int i = 0; i < 4; i++) vecData[i] = vectorInt[i];
+				register = X86.Sse2.load_si128(vecData);
+			}
+		}
+
+		[BurstCompile]
+		public static void Unique(in bool4 vec, out bool4 result)
+		{
+			if(!X86.Sse2.IsSse2Supported)
+			{
+				result = vec;
+				
+				bool replaced = false;
+				for(int i = 0; i < 4; i++)
+				{
+					result[i] &= !replaced;
+					replaced |= result[i];
+				}
+			}
+			else
+			{
+				ToVec(vec, out v128 raw);
+				SSE2Utils.MakeUnique(raw, out raw);
+				uint4 resultInt = new uint4(raw.UInt0, raw.UInt1, raw.UInt2, raw.UInt3);
+				result = resultInt == 1;
+			}
+		}
+
 		#region MinMax
 		
 		public const int MinMax_MaxBatch = AVXUtils.MinMax_batchSize;
@@ -84,37 +124,5 @@ namespace MathsUtils
 		}
 		
 		#endregion
-		
-		[BurstCompile]
-		public static float MinItem(in float4 items)
-		{
-			if(X86.Sse2.IsSse2Supported)
-			{
-				ToVec(items, out v128 vec);
-				return X86.Sse4_1.IsSse41Supported ? SSE4Utils.ReduceMin(vec) : SSE2Utils.ReduceMin(vec);
-			}
-			else
-			{
-				float minimum = float.MaxValue;
-				for(int i = 0; i < 4; i++) minimum = min(minimum, items[i]);
-				return minimum;
-			}
-		}
-		
-		[BurstCompile]
-		public static float MaxItem(in float4 items)
-		{
-			if(X86.Sse2.IsSse2Supported)
-			{
-				ToVec(items, out v128 vec);
-				return X86.Sse4_1.IsSse41Supported ? SSE4Utils.ReduceMax(vec) : SSE2Utils.ReduceMax(vec);
-			}
-			else
-			{
-				float maximum = float.MaxValue;
-				for(int i = 0; i < 4; i++) maximum = max(maximum, items[i]);
-				return maximum;
-			}
-		}
 	}
 }
