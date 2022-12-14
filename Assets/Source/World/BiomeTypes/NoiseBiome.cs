@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -47,9 +48,8 @@ namespace Utopia.World.BiomeTypes
 			return writeJob.Schedule(arrayLength, math.min(chunkSize, 32), noiseHandle);
 		}
 
-		public override void Dispose()
+		public override void OnComplete()
 		{
-			base.Dispose();
 			resultsCopy.Dispose();
 		}
 
@@ -60,6 +60,7 @@ namespace Utopia.World.BiomeTypes
 			public FunctionPointer<NoiseBiomeOperations.Operation> operation;
 
 			[ReadOnly]  public NativeArray<double> noise;
+			[NativeDisableContainerSafetyRestriction]
 			[WriteOnly] public NativeSlice<double> result;
 
 			public void Execute(int index)

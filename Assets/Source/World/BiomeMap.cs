@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using MathsUtils;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine.Events;
 
@@ -57,6 +58,17 @@ namespace Utopia.World
 			return result;
 		}
 
+		private NativeArray<double> weightingData;
+
+		public void GenerateChunk_OnComplete()
+		{
+			weightingData.Dispose();
+			for(int i = 0; i < biomes.Count; i++)
+			{
+				biomes[i].OnComplete();
+			}
+		}
+		
 		/// <summary>
 		/// Generates a map using the stored biome spawn rule list.
 		/// </summary>
@@ -70,7 +82,7 @@ namespace Utopia.World
 		public JobHandle GenerateChunk
 		(
 			in int2 chunk, int chunkSize, out NativeArray<float4> map,
-			out UnityAction completionCallback, bool persistent = false
+			bool persistent = false
 		)
 		{
 			int arrayLength = chunkSize * chunkSize;
@@ -84,8 +96,8 @@ namespace Utopia.World
 			
 			int biomeCount = biomes.Count;
 
-			NativeArray<double> weightingData = new NativeArray<double>(arrayLength * biomeCount, Allocator.TempJob);
-			
+			weightingData = new NativeArray<double>(arrayLength * biomeCount, Allocator.TempJob);
+
 			JobHandle? previous = null;
 			for(int i = 0; i < biomeCount; i++)
 			{
@@ -114,7 +126,6 @@ namespace Utopia.World
 				previous = packJobHandle;
 			}
 
-			completionCallback = () => weightingData.Dispose();
 			return previous ?? default;
 		}
 

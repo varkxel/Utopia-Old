@@ -33,7 +33,7 @@ namespace Utopia.World
 		public void Generate()
 		{
 			JobHandle indicesJob = GenerateIndices();
-			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeCompleteCallback);
+			JobHandle biomeJob = GenerateBiomes();
 
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob);
@@ -42,7 +42,8 @@ namespace Utopia.World
 			JobHandle meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
 			
 			meshDependency.Complete();
-			biomeCompleteCallback.Invoke();
+
+			Generator.instance.biomes.GenerateChunk_OnComplete();
 			
 			Mesh mesh = new Mesh()
 			{
@@ -86,12 +87,11 @@ namespace Utopia.World
 			return indicesJobData.Schedule();
 		}
 
-		private JobHandle GenerateBiomes(out UnityAction completionCallback)
+		private JobHandle GenerateBiomes()
 			=> Generator.instance.biomes.GenerateChunk
 		(
 			index, size,
 			out biomeMap,
-			out completionCallback,
 			persistent: false
 		);
 

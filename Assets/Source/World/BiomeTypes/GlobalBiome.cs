@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -32,6 +33,7 @@ namespace Utopia.World.BiomeTypes
 			public float threshold;
 
 			// Output
+			[NativeDisableContainerSafetyRestriction]
 			[WriteOnly] public NativeSlice<double> map;
 
 			public void Execute(int index)

@@ -10,6 +10,7 @@ namespace Utopia.World.BiomeTypes
 		Greater, Less
 	}
 
+	[BurstCompile]
 	public static class NoiseBiomeOperations
 	{
 		public delegate double Operation(double value, double threshold);

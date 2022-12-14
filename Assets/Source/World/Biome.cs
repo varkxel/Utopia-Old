@@ -18,6 +18,8 @@ namespace Utopia.World
 			heightmapModifier = new Curve(_heightmapModifier, allocator: Allocator.Persistent);
 		}
 
+		public virtual void OnComplete() {}
+
 		public virtual void Dispose()
 		{
 			heightmapModifier.Dispose();
