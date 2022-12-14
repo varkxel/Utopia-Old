@@ -92,14 +92,13 @@ namespace Utopia.World
 		public void Generate()
 		{
 			GenerateMask();
-			
-			GenerateChunk(new int2(0, 0));
-			/*// Generate everything, for now.
+
+			// Generate everything, for now.
 			for(int x = 0; x < worldSize / chunkSize; x++)
 			for(int y = 0; y < worldSize / chunkSize; y++)
 			{
 				GenerateChunk(new int2(x, y));
-			}*/
+			}
 		}
 
 		public void GenerateMask()

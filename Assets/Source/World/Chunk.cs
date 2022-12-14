@@ -32,12 +32,12 @@ namespace Utopia.World
 
 		public void Generate()
 		{
+			JobHandle indicesJob = GenerateIndices();
 			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeCompleteCallback);
 
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob);
 
-			JobHandle indicesJob = GenerateIndices();
 			JobHandle vertexJob = GenerateVertices(heightmapMultiplierJob);
 			JobHandle meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
 			
@@ -124,23 +124,26 @@ namespace Utopia.World
 		[BurstCompile]
 		private struct IndicesJob : IJob
 		{
+			/*
+				This could be quicker.
+				TODO Look into making this parallel.
+			*/
+
 			public int size;
 			public NativeList<int> results;
 
 			public void Execute()
 			{
 				for(int y = 0; y < size - 1; y++)
+				for(int x = 0; x < size - 1; x++)
 				{
-					for(int x = 0; x < size - 1; x++)
-					{
-						results.Add(Pos(x, y, size));
-						results.Add(Pos(x + 1, y + 1, size));
-						results.Add(Pos(x + 1, y, size));
-						
-						results.Add(Pos(x + 1, y + 1, size));
-						results.Add(Pos(x, y, size));
-						results.Add(Pos(x, y + 1, size));
-					}
+					results.Add(Pos(x, y, size));
+					results.Add(Pos(x + 1, y + 1, size));
+					results.Add(Pos(x + 1, y, size));
+
+					results.Add(Pos(x + 1, y + 1, size));
+					results.Add(Pos(x, y, size));
+					results.Add(Pos(x, y + 1, size));
 				}
 			}
 
