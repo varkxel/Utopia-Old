@@ -30,47 +30,34 @@ namespace Utopia.World
 			return chunk;
 		}
 
-		private JobHandle meshDependency;
-
 		public void Generate()
 		{
-			biomeJob = GenerateBiomes(out biomeCompleteCallback);
+			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeCompleteCallback);
 
 			JobHandle heightmapJob = GenerateHeightmap();
-			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob.Value);
+			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob);
 
 			JobHandle indicesJob = GenerateIndices();
 			JobHandle vertexJob = GenerateVertices(heightmapMultiplierJob);
-			meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
-		}
-
-		private void Update()
-		{
-			if(biomeJob is { IsCompleted: true })
+			JobHandle meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
+			
+			meshDependency.Complete();
+			biomeCompleteCallback.Invoke();
+			
+			Mesh mesh = new Mesh()
 			{
-				biomeJob.Value.Complete();
-				biomeCompleteCallback.Invoke();
-				biomeJob = null;
-			}
+				vertices = vertices.Reinterpret<Vector3>().ToArray(),
+				triangles = indices.ToArray(),
 
-			if(meshDependency is { IsCompleted: true })
-			{
-				meshDependency.Complete();
-				Mesh mesh = new Mesh()
-				{
-					vertices = vertices.Reinterpret<Vector3>().ToArray(),
-					triangles = indices.ToArray(),
-
-					indexFormat = IndexFormat.UInt16
-				};
-				mesh.RecalculateNormals();
-				GetComponent<MeshFilter>().mesh = mesh;
-
-				heightmap.Dispose();
-				biomeMap.Dispose();
-				vertices.Dispose();
-				indices.Dispose();
-			}
+				indexFormat = IndexFormat.UInt16
+			};
+			mesh.RecalculateNormals();
+			GetComponent<MeshFilter>().mesh = mesh;
+			
+			heightmap.Dispose();
+			biomeMap.Dispose();
+			vertices.Dispose();
+			indices.Dispose();
 		}
 
 		private NativeArray<double> heightmap;
@@ -98,9 +85,6 @@ namespace Utopia.World
 			};
 			return indicesJobData.Schedule();
 		}
-
-		private JobHandle? biomeJob;
-		private UnityAction biomeCompleteCallback;
 
 		private JobHandle GenerateBiomes(out UnityAction completionCallback)
 			=> Generator.instance.biomes.GenerateChunk

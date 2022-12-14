@@ -185,7 +185,6 @@ namespace Utopia.World
 
 				// Calculate which values should be blended between
 				bool4 shouldBlend = difference <= blend;
-				shouldBlend &= difference > 0.0f;	// Exclude itself
 
 				weights = unlerp(blend, 0.0f, difference);
 
