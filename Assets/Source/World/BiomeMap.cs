@@ -22,7 +22,7 @@ namespace Utopia.World
 		public List<Biome> biomes = new List<Biome>();
 
 		[Header("Blending")]
-		public float blendThreshold = 0.1f;
+		[Range(0.0f, 1.0f)] public float blendThreshold = 0.1f;
 
 		public NativeArray<Curve.RawData> curves;
 
@@ -89,10 +89,8 @@ namespace Utopia.World
 			map = new NativeArray<float4>
 			(
 				arrayLength,
-				persistent ? Allocator.Persistent : Allocator.TempJob,
-				NativeArrayOptions.UninitializedMemory
+				persistent ? Allocator.Persistent : Allocator.TempJob
 			);
-			for(int i = 0; i < arrayLength; i++) map[i] = -1.0f;
 			
 			int biomeCount = biomes.Count;
 
@@ -148,6 +146,13 @@ namespace Utopia.World
 				bool4 smallestWeight = abs(weights - MathsUtil.MinItem(weights)) < EPSILON;
 
 				bool4 replace = isGreater & smallestWeight;
+				bool replaced = false;
+				for (int i = 0; i < 4; i++) {
+					Loop.ExpectVectorized();
+					replace[i] &= !replaced;
+					replaced |= replace[i];
+				}
+
 				result = select(result, comparison, replace);
 
 				float4 biomeIndexVec = new float4(biomeIndex);
