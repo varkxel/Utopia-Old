@@ -147,7 +147,8 @@ namespace Utopia.World
 
 				bool4 replace = isGreater & smallestWeight;
 				bool replaced = false;
-				for (int i = 0; i < 4; i++) {
+				for(int i = 0; i < 4; i++)
+				{
 					replace[i] &= !replaced;
 					replaced |= replace[i];
 				}
