@@ -20,14 +20,18 @@ namespace Utopia.World
 		[Header("Biome List")]
 		public List<Biome> biomes = new List<Biome>();
 
+		[Header("Blending")]
+		public float blendThreshold = 0.1f;
+
 		public NativeArray<Curve.RawData> curves;
 
 		public void Initialise()
 		{
 			curves = new NativeArray<Curve.RawData>(biomes.Count, Allocator.Persistent);
-			foreach(Biome biome in biomes)
+			for(int i = 0; i < biomes.Count; i++)
 			{
-				biome.Initialise();
+				biomes[i].Initialise();
+				curves[i] = biomes[i].heightmapModifier.GetRawData();
 			}
 		}
 
@@ -145,13 +149,12 @@ namespace Utopia.World
 		}
 
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		private struct ModifierJob : IJobParallelFor
+		public struct ModifierJob : IJobParallelFor
 		{
 			[ReadOnly] public NativeArray<float4> biomes;
 			[ReadOnly] public NativeArray<Curve.RawData> curves;
 
-			[ReadOnly]  public NativeArray<float> input;
-			[WriteOnly] public NativeArray<float> output;
+			public NativeArray<double> heightmap;
 
 			public float blend;
 
@@ -172,7 +175,7 @@ namespace Utopia.World
 				float4 samples = new float4();
 				for(int i = 0; i < 4; i++)
 				{
-					samples[i] = Curve.Evaluate(input[index], biomeCurves[i]);
+					samples[i] = Curve.Evaluate((float) heightmap[index], biomeCurves[i]);
 				}
 
 				float4 weights = frac(biomeSample);
@@ -184,8 +187,8 @@ namespace Utopia.World
 				bool4 shouldBlend = difference <= blend;
 				shouldBlend &= difference > 0.0f;	// Exclude itself
 
-				weights = unlerp(blend, EPSILON, difference);
-				
+				weights = unlerp(blend, 0.0f, difference);
+
 				// Exclude out of threshold values
 				weights *= (float4) shouldBlend;
 
@@ -193,7 +196,7 @@ namespace Utopia.World
 				samples *= weights;
 				float val = csum(samples);
 				val /= csum(weights);
-				output[index] = val;
+				heightmap[index] = val;
 			}
 		}
 	}

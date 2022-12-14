@@ -34,11 +34,11 @@ namespace Utopia.World
 		}
 		
 		#endregion
-		
+
 		[Header("Random Instance")]
 		public uint seed = 1;
 		[System.NonSerialized] public Random random;
-		
+
 		// World
 		[Header("World")]
 		public int worldSize = 4096;
@@ -46,51 +46,60 @@ namespace Utopia.World
 		public int chunkSize = 128;
 
 		[SerializeField] internal Material chunkMaterial;
-		
+
 		// Mask
 		[Header("Mask")]
 		public Mask mask;
 		public NativeArray<float> maskData;
-		
+
 		// Heightmap
 		[Header("Heightmap")]
 		public NoiseMap2D heightmap;
-		
+
 		// Biomes
 		[Header("Biomes")]
 		public BiomeMap biomes;
-		
+
 		private void OnValidate()
 		{
 			if(seed < 1u) seed = 1u;
 		}
-		
+
 		private void Awake()
 		{
 			AwakeSingleton();
-			
+
 			// Initialise random
 			random.InitState(seed);
+
+			// Initialise biomes
+			biomes.Initialise();
 		}
 
 		private void OnDestroy()
 		{
+			biomes.Dispose();
+
 			heightmap.DestroyOffsets();
 			maskData.Dispose();
 		}
 
-		private void Start() => Generate();
+		private void Start()
+		{
+			Generate();
+		}
 		
 		public void Generate()
 		{
 			GenerateMask();
 			
-			// Generate everything, for now.
+			GenerateChunk(new int2(0, 0));
+			/*// Generate everything, for now.
 			for(int x = 0; x < worldSize / chunkSize; x++)
 			for(int y = 0; y < worldSize / chunkSize; y++)
 			{
 				GenerateChunk(new int2(x, y));
-			}
+			}*/
 		}
 
 		public void GenerateMask()

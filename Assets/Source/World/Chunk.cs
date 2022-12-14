@@ -30,41 +30,53 @@ namespace Utopia.World
 			return chunk;
 		}
 
+		private JobHandle meshDependency;
+
 		public void Generate()
 		{
+			biomeJob = GenerateBiomes(out biomeCompleteCallback);
+
 			JobHandle heightmapJob = GenerateHeightmap();
+			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob.Value);
+
 			JobHandle indicesJob = GenerateIndices();
-			JobHandle biomeJob = GenerateBiomes(out UnityAction biomeJobCallback);
-			
+			JobHandle vertexJob = GenerateVertices(heightmapMultiplierJob);
+			meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
+		}
 
-			NativeArray<float3> vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
-			VertexJob vertexJobData = new VertexJob()
+		private void Update()
+		{
+			if(biomeJob is { IsCompleted: true })
 			{
-				size = size,
-				heights = heightmap,
-				vertices = vertices
-			};
-			// TODO add heightmap multiplier job as dependency in the future - once it exists.
-			JobHandle vertexJob = vertexJobData.Schedule(size * size, size, heightmapJob);
+				biomeJob.Value.Complete();
+				biomeCompleteCallback.Invoke();
+				biomeJob = null;
+			}
 
-			indicesJob.Complete();
-			vertexJob.Complete();
-			Mesh mesh = new Mesh()
+			if(meshDependency is { IsCompleted: true })
 			{
-				vertices = vertices.Reinterpret<Vector3>().ToArray(),
-				triangles = indices.ToArray(),
+				meshDependency.Complete();
+				Mesh mesh = new Mesh()
+				{
+					vertices = vertices.Reinterpret<Vector3>().ToArray(),
+					triangles = indices.ToArray(),
 
-				indexFormat = IndexFormat.UInt16
-			};
-			mesh.RecalculateNormals();
-			GetComponent<MeshFilter>().mesh = mesh;
+					indexFormat = IndexFormat.UInt16
+				};
+				mesh.RecalculateNormals();
+				GetComponent<MeshFilter>().mesh = mesh;
 
-			vertices.Dispose();
-			indices.Dispose();
-			heightmap.Dispose();
+				heightmap.Dispose();
+				biomeMap.Dispose();
+				vertices.Dispose();
+				indices.Dispose();
+			}
 		}
 
 		private NativeArray<double> heightmap;
+		private NativeArray<float4> biomeMap;
+		private NativeArray<float3> vertices;
+		private NativeList<int> indices;
 
 		private JobHandle GenerateHeightmap()
 		{
@@ -75,8 +87,6 @@ namespace Utopia.World
 			
 			return heightmapGenerator.Schedule(heightmap.Length, 4);
 		}
-
-		private NativeList<int> indices;
 
 		private JobHandle GenerateIndices()
 		{
@@ -89,7 +99,8 @@ namespace Utopia.World
 			return indicesJobData.Schedule();
 		}
 
-		private NativeArray<float4> biomeMap;
+		private JobHandle? biomeJob;
+		private UnityAction biomeCompleteCallback;
 
 		private JobHandle GenerateBiomes(out UnityAction completionCallback)
 			=> Generator.instance.biomes.GenerateChunk
@@ -99,7 +110,33 @@ namespace Utopia.World
 			out completionCallback,
 			persistent: false
 		);
-		
+
+		private JobHandle ApplyMultiplier(JobHandle heightmapJob, JobHandle biomeJob)
+		{
+			Generator generator = Generator.instance;
+
+			BiomeMap.ModifierJob modifierJob = new BiomeMap.ModifierJob()
+			{
+				heightmap = heightmap,
+				biomes = biomeMap,
+				blend = generator.biomes.blendThreshold,
+				curves = generator.biomes.curves
+			};
+			return modifierJob.Schedule(heightmap.Length, 4, JobHandle.CombineDependencies(heightmapJob, biomeJob));
+		}
+
+		private JobHandle GenerateVertices(JobHandle heightmapJob)
+		{
+			vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
+			VertexJob vertexJobData = new VertexJob()
+			{
+				size = size,
+				heights = heightmap,
+				vertices = vertices
+			};
+			return vertexJobData.Schedule(size * size, size, heightmapJob);
+		}
+
 		[BurstCompile]
 		private struct IndicesJob : IJob
 		{
