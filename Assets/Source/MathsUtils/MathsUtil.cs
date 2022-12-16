@@ -28,20 +28,23 @@ namespace MathsUtils
 			}
 		}
 
+		[BurstCompile]
 		public static void ToVec(in bool4 vector, out v128 register)
 		{
 			uint4 vectorInt = (uint4) vector;
-			if(!X86.Sse2.IsSse2Supported)
+			if(X86.Sse2.IsSse2Supported)
+			{
+				unsafe
+				{
+					// Generate vector, should get condensed.
+					uint* vecData = stackalloc uint[4];
+					for(int i = 0; i < 4; i++) vecData[i] = vectorInt[i];
+					register = X86.Sse2.load_si128(vecData);
+				}
+			}
+			else
 			{
 				register = new v128(vectorInt.x, vectorInt.y, vectorInt.z, vectorInt.w);
-				return;
-			}
-			unsafe
-			{
-				// Generate vector, should get condensed.
-				uint* vecData = stackalloc uint[4];
-				for(int i = 0; i < 4; i++) vecData[i] = vectorInt[i];
-				register = X86.Sse2.load_si128(vecData);
 			}
 		}
 

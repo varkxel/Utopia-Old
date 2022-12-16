@@ -86,14 +86,21 @@ namespace MathsUtils
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void MakeUnique(in v128 vec, out v128 result)
 		{
-			v128 mask = new v128(1u, 1u, 1u, 1u);
 			result = vec;
-			
+
+			// Create xor mask to flip the bool vector
+			v128 mask = new v128(1u, 1u, 1u, 1u);
+
 			v128 shifted = vec;
 			for(uint i = 0; i < 3; i++)
 			{
+				// Shift vector values right to next element
 				shifted = srli_si128(shifted, 4);
+
+				// Flip the shifted vector
 				v128 flipped = xor_si128(shifted, mask);
+
+				// Compare against result
 				result = and_si128(result, flipped);
 			}
 		}

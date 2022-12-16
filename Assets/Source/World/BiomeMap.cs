@@ -146,12 +146,7 @@ namespace Utopia.World
 				bool4 smallestWeight = abs(weights - cmin(weights)) < EPSILON;
 
 				bool4 replace = isGreater & smallestWeight;
-				bool replaced = false;
-				for(int i = 0; i < 4; i++)
-				{
-					replace[i] &= !replaced;
-					replaced |= replace[i];
-				}
+				MathsUtil.Unique(replace, out replace);
 
 				result = select(result, comparison, replace);
 
