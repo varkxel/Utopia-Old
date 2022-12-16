@@ -15,6 +15,7 @@ namespace Utopia.World
 	{
 		public int2 index;
 		public int size;
+		private int meshSize;
 
 		internal static Chunk Create(GameObject obj, int2 index)
 		{
@@ -25,6 +26,7 @@ namespace Utopia.World
 			Chunk chunk = obj.AddComponent<Chunk>();
 			chunk.index = index;
 			chunk.size = Generator.instance.chunkSize;
+			chunk.meshSize = chunk.size + 1;
 
 			chunk.Generate();
 			return chunk;
@@ -68,9 +70,9 @@ namespace Utopia.World
 
 		private JobHandle GenerateHeightmap()
 		{
-			heightmap = new NativeArray<double>(size * size, Allocator.TempJob);
+			heightmap = new NativeArray<double>(meshSize * meshSize, Allocator.TempJob);
 			
-			Generator.instance.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapGenerator);
+			Generator.instance.heightmap.CreateJob(index, meshSize, out SimplexFractal2D heightmapGenerator);
 			heightmapGenerator.result = heightmap;
 			
 			return heightmapGenerator.Schedule(heightmap.Length, 4);
@@ -81,7 +83,7 @@ namespace Utopia.World
 			indices = new NativeList<int>(Allocator.TempJob);
 			IndicesJob indicesJobData = new IndicesJob()
 			{
-				size = size,
+				size = meshSize,
 				results = indices
 			};
 			return indicesJobData.Schedule();
@@ -90,7 +92,7 @@ namespace Utopia.World
 		private JobHandle GenerateBiomes()
 			=> Generator.instance.biomes.GenerateChunk
 		(
-			index, size,
+			index, meshSize,
 			out biomeMap,
 			persistent: false
 		);
@@ -111,14 +113,15 @@ namespace Utopia.World
 
 		private JobHandle GenerateVertices(JobHandle heightmapJob)
 		{
-			vertices = new NativeArray<float3>(size * size, Allocator.TempJob);
+			int vertexArraySize = meshSize * meshSize;
+			vertices = new NativeArray<float3>(vertexArraySize, Allocator.TempJob);
 			VertexJob vertexJobData = new VertexJob()
 			{
-				size = size,
+				size = meshSize,
 				heights = heightmap,
 				vertices = vertices
 			};
-			return vertexJobData.Schedule(size * size, size, heightmapJob);
+			return vertexJobData.Schedule(vertexArraySize, 32, heightmapJob);
 		}
 
 		[BurstCompile]
