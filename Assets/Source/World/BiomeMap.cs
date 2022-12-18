@@ -10,6 +10,7 @@ using Unity.Burst.CompilerServices;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine.Events;
+using UnityEngine.Experimental.Rendering;
 
 namespace Utopia.World
 {
@@ -26,20 +27,34 @@ namespace Utopia.World
 
 		public NativeArray<Curve.RawData> curves;
 
+		public int textureSize = 2048;
+		[System.NonSerialized] public Texture2DArray textures;
+
 		public void Initialise()
 		{
 			curves = new NativeArray<Curve.RawData>(biomes.Count, Allocator.Persistent);
+			textures = new Texture2DArray
+			(
+				textureSize, textureSize, biomes.Count,
+				biomes[0].biomeTexture.format, true
+			);
+
 			for(int i = 0; i < biomes.Count; i++)
 			{
 				biomes[i].Initialise();
 				curves[i] = biomes[i].heightmapModifier.GetRawData();
+				Graphics.CopyTexture(biomes[i].biomeTexture, 0, textures, i);
 			}
+
+			// ReSharper disable twice Unity.PreferAddressByIdToGraphicsParams
+			Shader.SetGlobalTexture("_BiomeTextures", textures);
+			Shader.SetGlobalFloat("_BiomeBlend", blendThreshold);
 		}
 
 		public void Dispose()
 		{
 			curves.Dispose();
-			
+
 			// Free biome data
 			foreach(Biome biome in biomes)
 			{

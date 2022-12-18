@@ -36,6 +36,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  biomeTexture: {fileID: 2800000, guid: 36614d8f2a313edb3b29561f585e1a47, type: 3}
   noise: {fileID: 11400000, guid: 68608c24b52d84975a81781742217594, type: 2}
   threshold: 0.4000000059604645
   operation: 0

@@ -16,3 +16,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 21f71d9ee7197809aaa87d93f207a45e, type: 2}
   - {fileID: 11400000, guid: a37d4c738052f6a47b8c7b0f3f46af8e, type: 2}
   blendThreshold: 0.25
+  textureSize: 2048
+  textures: {fileID: 0}

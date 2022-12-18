@@ -13,6 +13,8 @@ namespace Utopia.World
 		private AnimationCurve _heightmapModifier = AnimationCurve.Linear(0.0f, 0.0f, 1.0f, 1.0f);
 		public Curve heightmapModifier;
 
+		public Texture2D biomeTexture;
+
 		public virtual void Initialise()
 		{
 			heightmapModifier = new Curve(_heightmapModifier, allocator: Allocator.Persistent);
