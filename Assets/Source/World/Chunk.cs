@@ -22,7 +22,7 @@ namespace Utopia.World
 			obj.AddComponent<MeshFilter>();
 			MeshRenderer renderer = obj.AddComponent<MeshRenderer>();
 			renderer.material = Generator.instance.chunkMaterial;
-			
+
 			Chunk chunk = obj.AddComponent<Chunk>();
 			chunk.index = index;
 			chunk.size = Generator.instance.chunkSize;
@@ -35,13 +35,14 @@ namespace Utopia.World
 		public void Generate()
 		{
 			JobHandle indicesJob = GenerateIndices();
+			JobHandle uvJob = GenerateUVs();
 			JobHandle biomeJob = GenerateBiomes();
 
 			JobHandle heightmapJob = GenerateHeightmap();
 			JobHandle heightmapMultiplierJob = ApplyMultiplier(heightmapJob, biomeJob);
 
 			JobHandle vertexJob = GenerateVertices(heightmapMultiplierJob);
-			JobHandle meshDependency = JobHandle.CombineDependencies(indicesJob, vertexJob);
+			JobHandle meshDependency = JobHandle.CombineDependencies(uvJob, JobHandle.CombineDependencies(indicesJob, vertexJob));
 			
 			meshDependency.Complete();
 
@@ -54,7 +55,9 @@ namespace Utopia.World
 
 				indexFormat = IndexFormat.UInt16
 			};
-			mesh.SetUVs(0, biomeMap);
+			// TODO convert to MeshDataArray
+			mesh.SetUVs(0, uvs);
+			mesh.SetUVs(1, biomeMap);
 			mesh.RecalculateNormals();
 			GetComponent<MeshFilter>().mesh = mesh;
 			
@@ -62,12 +65,14 @@ namespace Utopia.World
 			biomeMap.Dispose();
 			vertices.Dispose();
 			indices.Dispose();
+			uvs.Dispose();
 		}
 
 		private NativeArray<double> heightmap;
 		private NativeArray<float4> biomeMap;
 		private NativeArray<float3> vertices;
 		private NativeList<int> indices;
+		private NativeArray<float2> uvs;
 
 		private JobHandle GenerateHeightmap()
 		{
@@ -88,6 +93,17 @@ namespace Utopia.World
 				results = indices
 			};
 			return indicesJobData.Schedule();
+		}
+
+		private JobHandle GenerateUVs()
+		{
+			uvs = new NativeArray<float2>(meshSize * meshSize, Allocator.TempJob);
+			UVJob uvJob = new UVJob()
+			{
+				size = meshSize,
+				uvs = uvs
+			};
+			return uvJob.Schedule(uvs.Length, 64);
 		}
 
 		private JobHandle GenerateBiomes()
@@ -169,6 +185,18 @@ namespace Utopia.World
 
 				float val = (float) heights[index];
 				vertices[index] = float3(index2D.x, val, index2D.y);
+			}
+		}
+
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
+		private struct UVJob : IJobParallelFor
+		{
+			public int size;
+			[WriteOnly] public NativeArray<float2> uvs;
+
+			public void Execute(int index)
+			{
+				uvs[index] = float2(fmod(index, size), index / (float) size);
 			}
 		}
 	}

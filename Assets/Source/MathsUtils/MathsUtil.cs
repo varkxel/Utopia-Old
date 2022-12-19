@@ -51,23 +51,13 @@ namespace MathsUtils
 		[BurstCompile]
 		public static void Unique(in bool4 vec, out bool4 result)
 		{
-			if(!X86.Sse2.IsSse2Supported)
+			result = vec;
+			
+			bool replaced = false;
+			for(int i = 0; i < 4; i++)
 			{
-				result = vec;
-				
-				bool replaced = false;
-				for(int i = 0; i < 4; i++)
-				{
-					result[i] &= !replaced;
-					replaced |= result[i];
-				}
-			}
-			else
-			{
-				ToVec(vec, out v128 raw);
-				SSE2Utils.MakeUnique(raw, out raw);
-				uint4 resultInt = new uint4(raw.UInt0, raw.UInt1, raw.UInt2, raw.UInt3);
-				result = resultInt == 1;
+				result[i] &= !replaced;
+				replaced |= result[i];
 			}
 		}
 

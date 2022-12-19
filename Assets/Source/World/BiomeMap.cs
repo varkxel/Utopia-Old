@@ -157,18 +157,15 @@ namespace Utopia.World
 				weights = frac(weights);
 
 				float4 comparison = new float4(clamp((float) biomeWeighting[index], 0.0f, 1.0f - EPSILON));
+				bool4 smallestWeight = cmin(weights) == weights;
+				comparison *= (float4) smallestWeight;
 				bool4 isGreater = comparison > weights;
-				bool4 smallestWeight = abs(weights - cmin(weights)) < EPSILON;
 
 				bool4 replace = isGreater & smallestWeight;
 				MathsUtil.Unique(replace, out replace);
 
-				result = select(result, comparison, replace);
-
-				float4 biomeIndexVec = new float4(biomeIndex);
-				float4 replaceMask = (float4) replace;
-				biomeIndexVec *= replaceMask;
-				result += biomeIndexVec;
+				float4 replacement = comparison + biomeIndex;
+				result = select(result, replacement, replace);
 
 				biomes[index] = result;
 			}
