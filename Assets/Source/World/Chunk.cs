@@ -54,6 +54,7 @@ namespace Utopia.World
 
 				indexFormat = IndexFormat.UInt16
 			};
+			mesh.SetUVs(0, biomeMap);
 			mesh.RecalculateNormals();
 			GetComponent<MeshFilter>().mesh = mesh;
 			

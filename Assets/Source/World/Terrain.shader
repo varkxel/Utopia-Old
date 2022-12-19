@@ -15,6 +15,7 @@ Shader "Utopia/Terrain"
 			#pragma fragment FS
 
 			#include "UnityCG.cginc"
+			#include "Assets/Source/Utils.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float _BiomeBlend;
@@ -38,16 +39,6 @@ Shader "Utopia/Terrain"
 			{
 				fragment.position_Clip = UnityObjectToClipPos(vertex.position_OS);
 				fragment.biome = vertex.biome;
-			}
-
-			float cmax(float4 vec)
-			{
-				return max(vec.x, max(vec.y, max(vec.z, vec.w)));
-			}
-
-			float unlerp(float4 a, float4 b, float4 x)
-			{
-				return (x - a) / (b - a);
 			}
 
 			float4 FS(Fragment fragment) : SV_Target
