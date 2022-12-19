@@ -88,6 +88,9 @@ namespace MathsUtils
 		{
 			result = vec;
 
+			// SSE2 Safety Check
+			if(!IsSse2Supported) return;
+
 			// Create xor mask to flip the bool vector
 			v128 mask = new v128(1u, 1u, 1u, 1u);
 
