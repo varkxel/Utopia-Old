@@ -2,8 +2,6 @@ Shader "Utopia/Terrain"
 {
 	Properties
 	{
-		//_BiomeTextures("Biome Textures", 2DArray) = "" {}
-		//_BiomeBlend("Biome Blending Threshold", Float) = 0.1
 	}
 	SubShader
 	{
@@ -15,9 +13,6 @@ Shader "Utopia/Terrain"
 			#pragma fragment FS
 
 			#include "UnityCG.cginc"
-			#include "Assets/Source/Utils.hlsl"
-
-			uniform float _BiomeBlend;
 
 			UNITY_DECLARE_TEX2DARRAY(_BiomeTextures);
 
