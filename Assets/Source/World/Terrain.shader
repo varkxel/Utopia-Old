@@ -32,25 +32,27 @@ Shader "Utopia/Terrain"
 			{
 				float4 position_Clip : SV_POSITION;
 				float2 uv : TEXCOORD0;
-				float4 biome : TEXCOORD1;
+				nointerpolation float4 biomeIndex : TEXCOORD1;
+				float4 biomeWeighting : TEXCOORD2;
 			};
 
 			void VS(Vertex vertex, out Fragment fragment)
 			{
 				fragment.position_Clip = UnityObjectToClipPos(vertex.position_OS);
 				fragment.uv = vertex.uv;
-				fragment.biome = vertex.biome;
+				fragment.biomeIndex = trunc(vertex.biome);
+				fragment.biomeWeighting = frac(vertex.biome);
 			}
 
 			float4 FS(Fragment fragment) : SV_Target
 			{
-				float4 biomeIndices = trunc(fragment.biome);
-				float4 weights = frac(fragment.biome);
-				
-				float4 sampleX = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, biomeIndices.x);
-				float4 sampleY = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, biomeIndices.y);
-				float4 sampleZ = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, biomeIndices.z);
-				float4 sampleW = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, biomeIndices.w);
+				float4 biomeIndices = fragment.biomeIndex;
+				float4 weights = fragment.biomeWeighting;
+
+				float4 sampleX = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.x));
+				float4 sampleY = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.y));
+				float4 sampleZ = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.z));
+				float4 sampleW = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.w));
 
 				float maxWeight = cmax(weights);
 				float4 difference = maxWeight - weights;
