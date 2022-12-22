@@ -23,6 +23,11 @@ namespace Utopia.World.BiomeTypes
 
 		public override JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result)
 		{
+			if(!noise.octaveOffsetsGenerated)
+			{
+				noise.GenerateOffsets(ref Generator.instance.random, persistent: true);
+			}
+			
 			int arrayLength = chunkSize * chunkSize;
 
 			noise.CreateJob(chunk, chunkSize, out SimplexFractal2D noiseJob);

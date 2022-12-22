@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
+using Utopia.World.BiomeTypes;
 using Random = Unity.Mathematics.Random;
 
 using Utopia.World.Masks;
@@ -78,6 +79,13 @@ namespace Utopia.World
 
 		private void OnDestroy()
 		{
+			foreach(Biome biome in biomes.biomes)
+			{
+				if(biome is NoiseBiome noiseBiome)
+				{
+					noiseBiome.noise.DestroyOffsets();
+				}
+			}
 			biomes.Dispose();
 
 			heightmap.DestroyOffsets();
