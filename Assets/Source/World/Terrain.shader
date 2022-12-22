@@ -32,7 +32,7 @@ Shader "Utopia/Terrain"
 			{
 				float4 position_Clip : SV_POSITION;
 				float2 uv : TEXCOORD0;
-				nointerpolation float4 biomeIndex : TEXCOORD1;
+				float4 biomeIndex : TEXCOORD1;
 				float4 biomeWeighting : TEXCOORD2;
 			};
 
@@ -48,39 +48,21 @@ Shader "Utopia/Terrain"
 			{
 				float4 biomeIndices = fragment.biomeIndex;
 				float4 weights = fragment.biomeWeighting;
+				float weightsTotal = weights.x + weights.y + weights.z + weights.w;
+				weights /= weightsTotal;
 
 				float4 sampleX = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.x));
 				float4 sampleY = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.y));
 				float4 sampleZ = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.z));
 				float4 sampleW = UNITY_SAMPLE_TEX2DARRAY(_BiomeTextures, float3(fragment.uv, biomeIndices.w));
 
-				float maxWeight = cmax(weights);
-				float4 difference = maxWeight - weights;
-
-				float4 shouldBlend = difference <= _BiomeBlend;
-				weights = unlerp(_BiomeBlend, 0.0f, difference);
-
-				// Exclude out of threshold values
-				weights *= shouldBlend;
-
-				// Blend values by weights
 				sampleX *= weights.x;
 				sampleY *= weights.y;
 				sampleZ *= weights.z;
 				sampleW *= weights.w;
 
-				sampleX = clamp(sampleX, 0, 1);
-				sampleY = clamp(sampleY, 0, 1);
-				sampleZ = clamp(sampleZ, 0, 1);
-				sampleW = clamp(sampleW, 0, 1);
-
-				// Sum the samples & weights
-				float4 sampleTotal = sampleX + sampleY + sampleZ + sampleW;
-				float weightsTotal = weights.x + weights.y + weights.z + weights.w;
-
-				// Calculate weighted average
-				float4 value = sampleTotal / weightsTotal;
-				return value;
+				float4 result = sampleX + sampleY + sampleZ + sampleW;
+				return result;
 			}
 
 			ENDHLSL
