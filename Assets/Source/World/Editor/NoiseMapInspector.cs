@@ -41,6 +41,7 @@ namespace Utopia.World
 			
 			// Await job to finish
 			generatorHandle.Complete();
+			noiseMap.DestroyOffsets();
 			
 			// Convert doubles to float for texture
 			for(int i = 0; i < result.Length; i++)
