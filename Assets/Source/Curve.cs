@@ -1,23 +1,22 @@
-using UnityEngine;
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 using static Unity.Mathematics.math;
 
-namespace Utopia
-{
+namespace Utopia {
 	/// <summary>
-	/// A DOTS-Compatible <see cref="AnimationCurve"/> implementation.
+	///     A DOTS-Compatible <see cref="AnimationCurve" /> implementation.
 	/// </summary>
 	[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-	public struct Curve : System.IDisposable
-	{
+	public struct Curve : IDisposable {
 		/// <summary>
-		/// The amount of samples in the curve / the amount of elements in the arrays.
+		///     The amount of samples in the curve / the amount of elements in the arrays.
 		/// </summary>
 		public readonly int length;
-		
+
 		// Curve data
 		[ReadOnly] public NativeArray<float> x;
 		[ReadOnly] public NativeArray<float> y;
@@ -25,13 +24,12 @@ namespace Utopia
 		[ReadOnly] public NativeArray<float> tangentOut;
 
 		/// <summary>
-		/// The raw data access for <see cref="Curve.Evaluate"/> to use.
-		/// Use <see cref="Curve.GetRawData"/> to generate the struct.
+		///     The raw data access for <see cref="Curve.Evaluate" /> to use.
+		///     Use <see cref="Curve.GetRawData" /> to generate the struct.
 		/// </summary>
-		public unsafe struct RawData
-		{
+		public unsafe struct RawData {
 			public int length;
-			
+
 			[ReadOnly] public float* xPtr;
 			[ReadOnly] public float* yPtr;
 			[ReadOnly] public float* tInPtr;
@@ -39,32 +37,31 @@ namespace Utopia
 		}
 
 		/// <summary>
-		/// Creates a <see cref="RawData"/> object to be used in jobs with <see cref="Evaluate"/>.
+		///     Creates a <see cref="RawData" /> object to be used in jobs with <see cref="Evaluate" />.
 		/// </summary>
-		public unsafe RawData GetRawData() => new RawData()
-		{
-			length = this.length,
-			xPtr = (float*) x.GetUnsafeReadOnlyPtr(),
-			yPtr = (float*) y.GetUnsafeReadOnlyPtr(),
-			tInPtr = (float*) tangentIn.GetUnsafeReadOnlyPtr(),
-			tOutPtr = (float*) tangentOut.GetUnsafeReadOnlyPtr()
-		};
+		public unsafe RawData GetRawData() {
+			return new RawData {
+				length = length,
+				xPtr = (float*)x.GetUnsafeReadOnlyPtr(),
+				yPtr = (float*)y.GetUnsafeReadOnlyPtr(),
+				tInPtr = (float*)tangentIn.GetUnsafeReadOnlyPtr(),
+				tOutPtr = (float*)tangentOut.GetUnsafeReadOnlyPtr()
+			};
+		}
 
 		/// <summary>
-		/// Converts the given AnimationCurve into a <see cref="Curve"/>.
+		///     Converts the given AnimationCurve into a <see cref="Curve" />.
 		/// </summary>
 		/// <param name="curve">The animation curve to convert.</param>
-		/// <param name="allocator">What the created <see cref="Curve"/> should be allocated as.</param>
-		public Curve(AnimationCurve curve, Allocator allocator)
-		{
+		/// <param name="allocator">What the created <see cref="Curve" /> should be allocated as.</param>
+		public Curve(AnimationCurve curve, Allocator allocator) {
 			length = curve.length;
 			x = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 			y = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 			tangentIn = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 			tangentOut = new NativeArray<float>(length, allocator, NativeArrayOptions.UninitializedMemory);
 
-			for(int i = 0; i < length; i++)
-			{
+			for (int i = 0; i < length; i++) {
 				Keyframe key = curve.keys[i];
 				x[i] = key.time;
 				y[i] = key.value;
@@ -73,8 +70,7 @@ namespace Utopia
 			}
 		}
 
-		public void Dispose()
-		{
+		public void Dispose() {
 			x.Dispose();
 			y.Dispose();
 			tangentIn.Dispose();
@@ -82,33 +78,29 @@ namespace Utopia
 		}
 
 		/// <summary>
-		/// Evaluates the given curve data.
+		///     Evaluates the given curve data.
 		/// </summary>
 		/// <param name="point">The X value of the curve.</param>
-		/// <param name="data">The data of the curve, generated from <see cref="GetRawData"/>.</param>
+		/// <param name="data">The data of the curve, generated from <see cref="GetRawData" />.</param>
 		/// <returns>The Y value of the curve.</returns>
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-		public static unsafe float Evaluate(float point, [ReadOnly] in RawData data)
-		{
+		public static unsafe float Evaluate(float point, [ReadOnly] in RawData data) {
 			// If the X value is below the lowest value, return the lowest value as a clamp.
-			if(point <= data.xPtr[0]) return data.yPtr[0];
+			if (point <= data.xPtr[0]) return data.yPtr[0];
 
 			int lastElement = data.length - 1;
 
 			// If the X value is above the highest value, return the highest value as a clamp.
-			if(point >= data.xPtr[lastElement]) return data.yPtr[lastElement - 1];
+			if (point >= data.xPtr[lastElement]) return data.yPtr[lastElement - 1];
 
 			// Find the two samples that the given X value lies between.
 			int leftSample = 0;
 			int rightSample = 0;
-			for(int i = 0; i < data.length - 1; i++)
-			{
-				if(data.xPtr[i] <= point)
-				{
+			for (int i = 0; i < data.length - 1; i++)
+				if (data.xPtr[i] <= point) {
 					leftSample = i;
 					rightSample = i + 1;
 				}
-			}
 
 			// Evaluate between the two samples with the cubic hermite spline function.
 			return EvaluateInterval
@@ -120,7 +112,7 @@ namespace Utopia
 		}
 
 		/// <summary>
-		/// Evaluates a cubic hermite spline between the two given values.
+		///     Evaluates a cubic hermite spline between the two given values.
 		/// </summary>
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		private static float EvaluateInterval
@@ -131,8 +123,7 @@ namespace Utopia
 			float yLeft, float yRight,
 			// Tangent
 			float tLeft, float tRight
-		)
-		{
+		) {
 			// Calculate the weighting between the left and right sample
 			float xInterpolation = unlerp(xLeft, xRight, xPoint);
 

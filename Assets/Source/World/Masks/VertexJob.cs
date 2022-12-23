@@ -4,28 +4,25 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
-namespace Utopia.World.Masks
-{
+namespace Utopia.World.Masks {
 	/// <summary>
-	/// Calculates the vertex positions from the given angles and extents.
+	///     Calculates the vertex positions from the given angles and extents.
 	/// </summary>
 	[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
-	public struct VertexJob : IJobParallelFor
-	{
+	public struct VertexJob : IJobParallelFor {
 		// Input angles & extents
-		[ReadOnly]  public NativeArray<float> angles;
-		[ReadOnly]  public NativeArray<float> extents;
-		
+		[ReadOnly] public NativeArray<float> angles;
+		[ReadOnly] public NativeArray<float> extents;
+
 		// Normalisation bounds:
 		//   0 = Min
 		//   1 = Max
-		[ReadOnly]  public NativeArray<float> extentsMinMax;
+		[ReadOnly] public NativeArray<float> extentsMinMax;
 
 		// Results array
 		[WriteOnly] public NativeSlice<float3> vertices;
 
-		public void Execute(int index)
-		{
+		public void Execute(int index) {
 			// Calculate the direction vector from the angle
 			float angle = angles[index];
 			float2 direction = float2(cos(angle), sin(angle));
