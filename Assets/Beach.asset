@@ -10,28 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f12e24c262134c1c84648661492e8eb9, type: 3}
-  m_Name: Land
+  m_Name: Beach
   m_EditorClassIdentifier: 
   _heightmapModifier:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: 0
+      time: -0.0006752014
       value: 0
-      inSlope: 0
-      outSlope: 0
+      inSlope: 25.849415
+      outSlope: 25.849415
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
+      outWeight: 0.024323417
     - serializedVersion: 3
       time: 1
-      value: 100
-      inSlope: 1
-      outSlope: 1
+      value: 20
+      inSlope: 20.678827
+      outSlope: 20.678827
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0
+      inWeight: 0.030425966
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2

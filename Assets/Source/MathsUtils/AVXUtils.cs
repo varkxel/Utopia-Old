@@ -6,6 +6,7 @@ using static Unity.Burst.Intrinsics.X86.Avx;
 using Unity.Collections;
 
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
 
 namespace MathsUtils
 {
@@ -22,6 +23,10 @@ namespace MathsUtils
 
 		#region Reduction
 
+		/// <summary>Reduces a vector by finding the minimum value.</summary>
+		/// <remarks>Superseded by <see cref="math.cmin(int2)"/>.</remarks>
+		/// <param name="vec">The vector to reduce.</param>
+		/// <returns>The minimum value in the vector.</returns>
 		[BurstCompile]
 		public static float ReduceMin(in v256 vec)
 		{
@@ -30,6 +35,10 @@ namespace MathsUtils
 			return SSE4Utils.ReduceMin(lower);
 		}
 
+		/// <summary>Reduces a vector by finding the maximum value.</summary>
+		/// <remarks>Superseded by <see cref="math.cmax(int2)"/>.</remarks>
+		/// <param name="vec">The vector to reduce.</param>
+		/// <returns>The maximum value in the vector.</returns>
 		[BurstCompile]
 		public static float ReduceMax(in v256 vec)
 		{
@@ -45,8 +54,9 @@ namespace MathsUtils
 		/// </summary>
 		public const int MinMax_batchSize = 8;
 
+		/// <inheritdoc cref="MathsUtil.MinMax"/>
 		/// <summary>
-		/// AVX Pathway for the MinMax function.
+		/// AVX Pathway for the <see cref="MathsUtil.MinMax"/> function.
 		/// I found that the burst compiler isn't generating code utilising the YMM registers,
 		/// so have developed a pathway specifically for AVX-capable chips that does utilise the 256-bit registers.
 		/// </summary>
@@ -54,13 +64,17 @@ namespace MathsUtils
 		/// AVX512 improvements are possible beyond the 512-bit registers:
 		/// The reduce instruction would be extremely useful for coalescing the final values into a float.
 		/// </remarks>
-		/// <param name="array">Read-only pointer to the array to calculate min/max from.</param>
-		/// <param name="length">Length of the array to operate on.</param>
-		/// <param name="minimum">The minimum value in the array.</param>
-		/// <param name="maximum">The maximum value in the array.</param>
 		[BurstCompile(FloatPrecision.Low, FloatMode.Fast)]
 		public static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
+			// Safety check since Unity requires it.
+			if(!IsAvxSupported)
+			{
+				minimum = float.MaxValue;
+				maximum = float.MinValue;
+				return;
+			}
+
 			// Initialise the outputs
 			minimum = float.MaxValue;
 			maximum = float.MaxValue;

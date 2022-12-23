@@ -12,6 +12,9 @@ namespace Utopia.World
 	[BurstCompile]
 	public class Generator : MonoBehaviour
 	{
+		/// <summary>
+		/// Asset menu path for this object and subobjects.
+		/// </summary>
 		internal const string AssetPath = "Utopia/Generator/";
 		
 		#region Singleton

@@ -17,6 +17,7 @@ namespace MathsUtils
 			https://stackoverflow.com/a/35270026
 		*/
 		
+		/// <inheritdoc cref="AVXUtils.ReduceMin"/>
 		[BurstCompile]
 		public static float ReduceMin(in v128 vec)
 		{
@@ -27,6 +28,7 @@ namespace MathsUtils
 			return cvtss_f32(min);
 		}
 		
+		/// <inheritdoc cref="AVXUtils.ReduceMax"/>
 		[BurstCompile]
 		public static float ReduceMax(in v128 vec)
 		{
@@ -39,6 +41,10 @@ namespace MathsUtils
 		
 		#endregion
 
+		/// <inheritdoc cref="MathsUtil.MinMax"/>
+		/// <summary>
+		/// SSE4 Pathway for the <see cref="MathsUtil.MinMax"/> function.
+		/// </summary>
 		[BurstCompile]
 		internal static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{

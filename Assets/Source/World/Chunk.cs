@@ -1,21 +1,24 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine.Events;
-using UnityEngine.Rendering;
 using static Unity.Mathematics.math;
+
 using Utopia.Noise;
 
 namespace Utopia.World
 {
+	/// <summary>
+	/// The component representing a chunk within the generator.
+	/// Probably will be coalesced with the <see cref="Generator"/> class and split up from there in the future.
+	/// </summary>
 	[RequireComponent(typeof(MeshFilter))]
 	public class Chunk : MonoBehaviour
 	{
 		public int2 index;
 		public int size;
-		private int meshSize;
 
 		internal static Chunk Create(GameObject obj, int2 index)
 		{
@@ -26,7 +29,6 @@ namespace Utopia.World
 			Chunk chunk = obj.AddComponent<Chunk>();
 			chunk.index = index;
 			chunk.size = Generator.instance.chunkSize;
-			chunk.meshSize = chunk.size + 1;
 
 			chunk.Generate();
 			return chunk;
@@ -76,9 +78,9 @@ namespace Utopia.World
 
 		private JobHandle GenerateHeightmap()
 		{
-			heightmap = new NativeArray<double>(meshSize * meshSize, Allocator.TempJob);
+			heightmap = new NativeArray<double>(size * size, Allocator.TempJob);
 			
-			Generator.instance.heightmap.CreateJob(index, meshSize, out SimplexFractal2D heightmapGenerator);
+			Generator.instance.heightmap.CreateJob(index, size, out SimplexFractal2D heightmapGenerator);
 			heightmapGenerator.result = heightmap;
 			
 			return heightmapGenerator.Schedule(heightmap.Length, 4);
@@ -89,7 +91,7 @@ namespace Utopia.World
 			indices = new NativeList<int>(Allocator.TempJob);
 			IndicesJob indicesJobData = new IndicesJob()
 			{
-				size = meshSize,
+				size = this.size,
 				results = indices
 			};
 			return indicesJobData.Schedule();
@@ -97,10 +99,10 @@ namespace Utopia.World
 
 		private JobHandle GenerateUVs()
 		{
-			uvs = new NativeArray<float2>(meshSize * meshSize, Allocator.TempJob);
+			uvs = new NativeArray<float2>(size * size, Allocator.TempJob);
 			UVJob uvJob = new UVJob()
 			{
-				size = meshSize,
+				size = this.size,
 				uvs = uvs
 			};
 			return uvJob.Schedule(uvs.Length, 64);
@@ -109,7 +111,7 @@ namespace Utopia.World
 		private JobHandle GenerateBiomes()
 			=> Generator.instance.biomes.GenerateChunk
 		(
-			index, meshSize,
+			index, size,
 			out biomeMap,
 			persistent: false
 		);
@@ -122,7 +124,6 @@ namespace Utopia.World
 			{
 				heightmap = heightmap,
 				biomes = biomeMap,
-				blend = generator.biomes.blendThreshold,
 				curves = generator.biomes.curves
 			};
 			return modifierJob.Schedule(heightmap.Length, 4, JobHandle.CombineDependencies(heightmapJob, biomeJob));
@@ -130,11 +131,11 @@ namespace Utopia.World
 
 		private JobHandle GenerateVertices(JobHandle heightmapJob)
 		{
-			int vertexArraySize = meshSize * meshSize;
+			int vertexArraySize = size * size;
 			vertices = new NativeArray<float3>(vertexArraySize, Allocator.TempJob);
 			VertexJob vertexJobData = new VertexJob()
 			{
-				size = meshSize,
+				size = this.size,
 				heights = heightmap,
 				vertices = vertices
 			};

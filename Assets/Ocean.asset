@@ -64,4 +64,4 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   biomeTexture: {fileID: 2800000, guid: c53d6e6a1587f260ba3e7352a19c6da8, type: 3}
-  threshold: 0.2
+  threshold: 0.01

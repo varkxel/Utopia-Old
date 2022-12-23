@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 using static Unity.Mathematics.math;
 
 namespace Utopia.Noise
@@ -21,12 +22,14 @@ namespace Utopia.Noise
 		[System.Serializable]
 		public struct Settings
 		{
+			[Tooltip("The scale of the noise map.\nHigher is bigger.")]
 			public double scale;
-			
+			[Tooltip("The amount of octaves of noise to generate.")]
 			public int octaves;
 			public double gain;
 			public double lacunarity;
-			
+
+			/// <summary>Generates the default values for the serialised settings object.</summary>
 			public static Settings Default() => new Settings()
 			{
 				scale = 64,
@@ -35,23 +38,25 @@ namespace Utopia.Noise
 				lacunarity = 2.0
 			};
 		}
-		
+
+		/// <summary>The serializable generation settings to use.</summary>
 		public Settings settings;
 
+		/// <summary>Bounds to generate the noise between.</summary>
 		public int4 bounds;
-		
+
 		// Cached total amplitude
 		private const double initialAmplitude = 0.5;
 		private double amplitudeTotal;
-		
+
 		/// <summary>The position offsets to use for each octave.</summary>
 		/// <remarks>It is your responsibility to set these before executing the generator.</remarks>
 		[ReadOnly] public NativeArray<double2> octaveOffsets;
-		
+
 		/// <summary>The array containing the results of the generator.</summary>
 		/// <remarks>You need to allocate the result vector yourself.</remarks>
 		[WriteOnly] public NativeArray<double> result;
-		
+
 		/// <summary>Initialises local cached variables used within the job.</summary>
 		/// <remarks>You don't need to call this if you created your job via a NoiseMap2D object.</remarks>
 		public void Initialise()
@@ -65,7 +70,7 @@ namespace Utopia.Noise
 				amplitudeTotal += amplitude;
 			}
 		}
-		
+
 		/// <summary>Cached per-octave rotation matrix.</summary>
 		/// <remarks>Used to reduce artefacts in the result.</remarks>
 		private static readonly double2x2 rotation = new double2x2
@@ -73,7 +78,7 @@ namespace Utopia.Noise
 			cos(0.5), sin(0.5),
 			-sin(0.5), cos(0.5)
 		);
-		
+
 		public void Execute(int i)
 		{
 			// Get sample position
@@ -106,7 +111,7 @@ namespace Utopia.Noise
 			
 			result[i] = value;
 		}
-		
+
 		#region Noise Algorithm
 		
 		/*

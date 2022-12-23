@@ -5,9 +5,15 @@ using Random = Unity.Mathematics.Random;
 
 namespace Utopia.World.Masks
 {
+	/// <summary>
+	/// An inspector to visualise Island Masks.
+	/// </summary>
 	[CustomEditor(typeof(Mask))]
 	internal sealed class MaskInspector : TexturePreviewInspector
 	{
+		/// <summary>
+		/// Random instance to be used for the preview generation.
+		/// </summary>
 		private Random random;
 		
 		protected override void Awake()
@@ -17,6 +23,9 @@ namespace Utopia.World.Masks
 			base.Awake();
 		}
 		
+		/// <summary>
+		/// Internal result array for the GPU data to get written to.
+		/// </summary>
 		private NativeArray<float> result;
 		
 		public override void UpdateTexture()
@@ -30,6 +39,10 @@ namespace Utopia.World.Masks
 			mask.GetResult(ref result, UpdateTexture_OnMaskGenerated);
 		}
 		
+		/// <summary>
+		/// GPU callback for once the preview texture has been read back from the GPU.
+		/// Finishes off the texture update.
+		/// </summary>
 		private void UpdateTexture_OnMaskGenerated()
 		{
 			Color[] image = new Color[resolution * resolution];

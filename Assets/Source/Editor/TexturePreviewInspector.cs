@@ -4,6 +4,9 @@ using UnityEditor;
 
 namespace Utopia
 {
+	/// <summary>
+	/// A base inspector for preview inspectors to extend from.
+	/// </summary>
 	internal abstract class TexturePreviewInspector : Editor
 	{
 		// Texture field
@@ -22,7 +25,7 @@ namespace Utopia
 		
 		protected virtual void Awake()
 		{
-			texture = new Texture2D(resolution, resolution, DefaultFormat.HDR, TextureCreationFlags.DontUploadUponCreate);
+			texture = new Texture2D(resolution, resolution, DefaultFormat.HDR, TextureCreationFlags.None);
 			if(Application.isPlaying) UpdateTexture();
 		}
 		
@@ -31,6 +34,9 @@ namespace Utopia
 		/// </summary>
 		public abstract void UpdateTexture();
 		
+		/// <summary>
+		/// Whether the texture should be updated on each UI update or not.
+		/// </summary>
 		private bool alwaysUpdate = false;
 		
 		public override void OnInspectorGUI()

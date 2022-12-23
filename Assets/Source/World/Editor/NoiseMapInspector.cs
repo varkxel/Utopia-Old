@@ -9,9 +9,15 @@ using Utopia.Noise;
 
 namespace Utopia.World
 {
+	/// <summary>
+	/// An inspector to visualise the Noise Maps.
+	/// </summary>
 	[CustomEditor(typeof(NoiseMap2D))]
 	internal sealed class NoiseMapInspector : TexturePreviewInspector
 	{
+		/// <summary>
+		/// Random instance to be used for the preview generation.
+		/// </summary>
 		private Random random;
 		
 		protected override void Awake()
@@ -26,6 +32,7 @@ namespace Utopia.World
 			NoiseMap2D noiseMap = target as NoiseMap2D;
 			Debug.Assert(noiseMap != null, nameof(noiseMap) + " != null");
 			
+			// Initialise the noise map
 			noiseMap.GenerateOffsets(ref random, persistent: false);
 			noiseMap.CreateJob(new int2(0, 0), resolution, out SimplexFractal2D generator);
 			

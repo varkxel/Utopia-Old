@@ -7,10 +7,16 @@ using Utopia.Noise;
 
 namespace Utopia.World
 {
+	/// <summary>
+	/// A noise map container which handles creation of,
+	/// variables for and cleanup of a <see cref="SimplexFractal2D"/> noise map.
+	/// </summary>
 	[CreateAssetMenu(menuName = Generator.AssetPath + "Noise Map", fileName = "Noise Map")]
-	public sealed class NoiseMap2D : ScriptableObject
+	public class NoiseMap2D : ScriptableObject
 	{
-		// Serialized data
+		/// <summary>
+		/// The serialised parameters / settings for the noise map generation.
+		/// </summary>
 		public SimplexFractal2D.Settings settings = SimplexFractal2D.Settings.Default();
 		
 		// Context data
@@ -51,6 +57,8 @@ namespace Utopia.World
 		
 		public void DestroyOffsets()
 		{
+			if(!octaveOffsetsGenerated) return;
+
 			octaveOffsets.Dispose();
 			octaveOffsetsGenerated = false;
 		}

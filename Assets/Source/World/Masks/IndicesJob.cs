@@ -4,9 +4,13 @@ using Unity.Jobs;
 
 namespace Utopia.World.Masks
 {
+	/// <summary>
+	/// Generates the indices for the mask's mesh.
+	/// </summary>
 	[BurstCompile]
 	public struct IndicesJob : IJob
 	{
+		// Results
 		public NativeArray<int> indices;
 
 		public void Execute()

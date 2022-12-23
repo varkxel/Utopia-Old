@@ -3,6 +3,9 @@ using static Unity.Mathematics.math;
 
 namespace Utopia.Noise
 {
+	/// <summary>
+	/// A basic smooth 1D noise function.
+	/// </summary>
 	[BurstCompile]
 	public static class Smooth1D
 	{
@@ -14,6 +17,9 @@ namespace Utopia.Noise
 		[BurstCompile]
 		public static float Random(float x) => frac(sin(x) * 100000.0f);
 
+		/// <summary>Gets a sample of the 1D smooth noise function at the given X position.</summary>
+		/// <param name="x">The coordinate to sample.</param>
+		/// <returns>The smooth noise function at the given X position.</returns>
 		[BurstCompile]
 		public static float Sample(float x)
 		{
@@ -24,6 +30,7 @@ namespace Utopia.Noise
 			return lerp(Random(integer), Random(integer + 1.0f), smoothstep(0.0f, 1.0f, fraction));
 		}
 
+		/// <summary>Layered 1D smooth noise.</summary>
 		[BurstCompile]
 		public static float Fractal(float x, uint octaves, float lacunarity, float gain)
 		{

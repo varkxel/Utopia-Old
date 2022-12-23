@@ -1,13 +1,9 @@
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using static Unity.Burst.Intrinsics.X86.Sse;
-using static Unity.Burst.Intrinsics.X86.Sse2;
-
 using Unity.Collections;
 
 using System.Runtime.CompilerServices;
-using Unity.Mathematics;
-using UnityEngine;
 
 namespace MathsUtils
 {
@@ -21,6 +17,7 @@ namespace MathsUtils
 			https://stackoverflow.com/a/35270026
 		*/
 		
+		/// <inheritdoc cref="AVXUtils.ReduceMin"/>
 		[BurstCompile]
 		public static float ReduceMin(in v128 vec)
 		{
@@ -31,6 +28,7 @@ namespace MathsUtils
 			return cvtss_f32(min);
 		}
 		
+		/// <inheritdoc cref="AVXUtils.ReduceMax"/>
 		[BurstCompile]
 		public static float ReduceMax(in v128 vec)
 		{
@@ -48,6 +46,7 @@ namespace MathsUtils
 		/// </summary>
 		public const int MinMax_batchSize = 4;
 
+		/// <inheritdoc cref="MathsUtil.MinMax"/>
 		[BurstCompile]
 		internal static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
@@ -58,6 +57,10 @@ namespace MathsUtils
 			maximum = ReduceMax(maxRegister);
 		}
 
+		/// <inheritdoc cref="MathsUtil.MinMax"/>
+		/// <summary>
+		/// SSE2 Pathway for the <see cref="MathsUtil.MinMax"/> function.
+		/// </summary>
 		[BurstCompile]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static unsafe void MinMax_SSE2Base([ReadOnly] float* array, int length, out v128 minRegister, out v128 maxRegister)
@@ -79,32 +82,6 @@ namespace MathsUtils
 				// Calculate the min/max for the registers
 				minRegister = min_ps(minRegister, valRegister);
 				maxRegister = max_ps(maxRegister, valRegister);
-			}
-		}
-
-		[BurstCompile]
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void MakeUnique(in v128 vec, out v128 result)
-		{
-			result = vec;
-
-			// SSE2 Safety Check
-			if(!IsSse2Supported) return;
-
-			// Create xor mask to flip the bool vector
-			v128 mask = new v128(1u, 1u, 1u, 1u);
-
-			v128 shifted = vec;
-			for(uint i = 0; i < 3; i++)
-			{
-				// Shift vector values right to next element
-				shifted = srli_si128(shifted, 4);
-
-				// Flip the shifted vector
-				v128 flipped = xor_si128(shifted, mask);
-
-				// Compare against result
-				result = and_si128(result, flipped);
 			}
 		}
 	}

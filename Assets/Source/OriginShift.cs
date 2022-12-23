@@ -1,18 +1,30 @@
 using UnityEngine;
 using Unity.Burst;
 using Unity.Mathematics;
+using static Unity.Mathematics.math;
 
 namespace Utopia
 {
 	[BurstCompile]
 	public sealed class OriginShift : MonoBehaviour
 	{
+		/// <summary>
+		/// The player's transform to keep track of.
+		/// </summary>
+		[Tooltip("The player's transform to keep track of.")]
 		public Transform player;
 
-		public float shiftSize = 4096.0f;
+		/// <summary>
+		/// The distance the player has to travel before shifting the origin.
+		/// </summary>
+		[Tooltip("The distance the player has to travel before shifting the origin.")]
+		public float shiftSize = 2048.0f;
 
 		public int2 shift { get; private set; }
 
+		/// <summary>
+		/// Gets the current position of the player as a <see cref="double2"/>.
+		/// </summary>
 		public double2 position
 		{
 			get
@@ -43,13 +55,20 @@ namespace Utopia
 			}
 		}
 
-		[BurstCompile]
+		/// <summary>
+		/// Calculate whether the player has to shift or not.
+		/// </summary>
+		/// <param name="playerPos">The current player position tracked by <see cref="player"/>.</param>
+		/// <param name="shiftSize">The amount to shift the world by when the value is reached.</param>
+		/// <param name="shiftAmount">The amount the world has been shifted this frame.</param>
+		/// <param name="shiftIndex">The amount the world has been shifted this frame in steps.</param>
+		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		private static void CalculateShift(in float3 playerPos, float shiftSize, out float3 shiftAmount, out int2 shiftIndex)
 		{
 			// Set shift amount to the direction to shift in
 			shiftAmount = playerPos;
 			shiftAmount.xz /= shiftSize;
-			shiftAmount.xz = math.trunc(shiftAmount.xz);
+			shiftAmount.xz = trunc(shiftAmount.xz);
 
 			// Increment counter in direction to track shift
 			shiftIndex = (int2) shiftAmount.xz;

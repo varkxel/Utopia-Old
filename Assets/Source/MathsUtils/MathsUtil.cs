@@ -8,51 +8,23 @@ using static Unity.Mathematics.math;
 
 namespace MathsUtils
 {
+	/// <summary>
+	/// A set of miscellaneous utilities that are commonly used across the project.
+	/// </summary>
 	[BurstCompile]
 	public static class MathsUtil
 	{
-		public static void ToVec(in float4 vector, out v128 register)
-		{
-			if(!X86.Sse.IsSseSupported)
-			{
-				// Probably won't get called, probably won't work either.
-				register = new v128(vector.x, vector.y, vector.z, vector.w);
-				return;
-			}
-			unsafe
-			{
-				// Generate vector, should get condensed.
-				float* vecData = stackalloc float[4];
-				for(int i = 0; i < 4; i++) vecData[i] = vector[i];
-				register = X86.Sse.load_ps(vecData);
-			}
-		}
-
-		[BurstCompile]
-		public static void ToVec(in bool4 vector, out v128 register)
-		{
-			uint4 vectorInt = (uint4) vector;
-			if(X86.Sse2.IsSse2Supported)
-			{
-				unsafe
-				{
-					// Generate vector, should get condensed.
-					uint* vecData = stackalloc uint[4];
-					for(int i = 0; i < 4; i++) vecData[i] = vectorInt[i];
-					register = X86.Sse2.load_si128(vecData);
-				}
-			}
-			else
-			{
-				register = new v128(vectorInt.x, vectorInt.y, vectorInt.z, vectorInt.w);
-			}
-		}
-
+		/// <summary>
+		/// Clears a vector in order to only have one member be true.
+		/// </summary>
+		/// <param name="vec">The vector to make unique.</param>
+		/// <param name="result">The vector to write the result to.</param>
 		[BurstCompile]
 		public static void Unique(in bool4 vec, out bool4 result)
 		{
 			result = vec;
-			
+
+			// TODO Find faster approach.
 			bool replaced = false;
 			for(int i = 0; i < 4; i++)
 			{
@@ -62,9 +34,20 @@ namespace MathsUtils
 		}
 
 		#region MinMax
-		
-		public const int MinMax_MaxBatch = AVXUtils.MinMax_batchSize;
 
+		/// <summary>
+		/// The minimum batch size that can be used for the <see cref="MinMax"/> function.
+		/// All given data needs to be a multiple of this value.
+		/// </summary>
+		/// <remarks>
+		/// See <see cref="MinMax_BatchSize"/> for a runtime variant that returns the value for the given architecture.
+		/// </remarks>
+		/// <seealso cref="MinMax_BatchSize"/>
+		public const int MinMax_Batch = AVXUtils.MinMax_batchSize;
+
+		/// <returns>
+		/// The minimum batch size for the <see cref="MinMax"/> function for the current architecture.
+		/// </returns>
 		[BurstCompile]
 		public static int MinMax_BatchSize()
 		{
@@ -73,6 +56,18 @@ namespace MathsUtils
 			else return 1;
 		}
 
+		/// <summary>
+		/// Calculates the minimum and maximum value of the given array.
+		/// Array must be a multiple of <see cref="MinMax_Batch"/>.
+		/// </summary>
+		/// <remarks>
+		/// Might become obsolete with an update to the Smooth1D noise that would ensure normalised results.
+		/// </remarks>
+		/// <param name="array">The array to calculate the minimum and maximum from.</param>
+		/// <param name="length">The length of the given array.</param>
+		/// <param name="minimum">The minimum value result in the array.</param>
+		/// <param name="maximum">The maximum value result in the array.</param>
+		/// <seealso cref="MinMax_Batch"/>
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		public static unsafe void MinMax([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
@@ -82,6 +77,8 @@ namespace MathsUtils
 			else MinMax_Default(array, length, out minimum, out maximum);
 		}
 
+		/// <inheritdoc cref="MinMax"/>
+		/// <summary>Default code path for the <see cref="MinMax"/> function.</summary>
 		[BurstCompile(FloatPrecision.Standard, FloatMode.Fast)]
 		private static unsafe void MinMax_Default([ReadOnly] float* array, int length, out float minimum, out float maximum)
 		{
@@ -97,20 +94,40 @@ namespace MathsUtils
 			}
 		}
 
+		/// <summary>
+		/// A jobified version of the <see cref="MinMax"/> function.
+		/// </summary>
 		public struct MinMaxJob : IJob
 		{
+			/// <summary>
+			/// The array to calculate the minimum and maximum from.
+			/// </summary>
 			[ReadOnly] public NativeArray<float> array;
 
+			/// <summary>
+			/// The results from the job.
+			/// </summary>
+			/// <remarks>
+			/// This is a two element array:
+			/// Element 0 is the minimum,
+			/// Element 1 is the maximum.
+			/// </remarks>
 			[WriteOnly] public NativeArray<float> minMax;
 
 			public void Execute()
 			{
+				// Result variables
 				float minimum, maximum;
 				unsafe
 				{
+					// Get pointer from the given array
 					float* ptr = (float*) array.GetUnsafeReadOnlyPtr();
+
+					// Pass to function
 					MinMax(ptr, array.Length, out minimum, out maximum);
 				}
+
+				// Set the results
 				minMax[0] = minimum;
 				minMax[1] = maximum;
 			}

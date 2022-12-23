@@ -7,7 +7,7 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 	}
 	SubShader
 	{
-		// Disable everything
+		// Disable everything that isn't necessary
 		ZWrite Off
 		ZTest Off
 		Blend Off
@@ -18,33 +18,37 @@ Shader "Hidden/Utopia/World/MaskGenerator"
 		{
 			HLSLPROGRAM
 			
-			#pragma vertex Vertex
-			#pragma fragment Fragment
+			#pragma vertex VS
+			#pragma fragment FS
 			
 			#include "UnityCG.cginc"
-			
+
+			// Properties
 			CBUFFER_START(UnityPerMaterial)
 				float _Mainland;
 				float _Ocean;
 			CBUFFER_END
 			
-			struct FragmentInfo
+			struct Fragment
 			{
 				float4 position_Clip : SV_POSITION;
 				float2 position2D : TEXCOORD0;
 			};
 			
-			void Vertex(float3 position_OS : POSITION, out FragmentInfo output)
+			void VS(float3 position_OS : POSITION, out Fragment output)
 			{
+				// Transform position
 				output.position_Clip = UnityObjectToClipPos(position_OS);
+
+				// Calculate UV from Object-Space position.
 				output.position2D = position_OS.xy;
 			}
 			
-			void Geometry()
+			void GS()
 			{
 			}
 			
-			float Fragment(FragmentInfo input) : SV_Target
+			float FS(Fragment input) : SV_Target
 			{
 				// Create a gradient from 0 on the outside to 1 in the centre
 				float2 sample2D = 1.0 - abs(input.position2D.xy);

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Base Heightmap
   m_EditorClassIdentifier: 
   settings:
-    scale: 64
+    scale: 256
     octaves: 6
     gain: 0.41
     lacunarity: 1.2

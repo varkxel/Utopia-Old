@@ -14,10 +14,14 @@ namespace Utopia.World.BiomeTypes
 	[CreateAssetMenu(menuName = AssetPath + "Global Biome")]
 	public class GlobalBiome : Biome
 	{
-		public float threshold = 0.2f;
+		/// <summary>
+		/// The base threshold to globally set the biomes to.
+		/// </summary>
+		public float threshold = 0.01f;
 
 		public override JobHandle CalculateWeighting(in int2 chunk, int chunkSize, NativeSlice<double> result)
 		{
+			// Schedule the write job
 			WriteJob writeJob = new WriteJob()
 			{
 				threshold = this.threshold,
@@ -26,13 +30,16 @@ namespace Utopia.World.BiomeTypes
 			return writeJob.Schedule(chunkSize * chunkSize, math.min(chunkSize, 128));
 		}
 
+		/// <summary>
+		/// Internal parallel job to write the threshold to the biome map array.
+		/// </summary>
 		[BurstCompile]
 		private struct WriteJob : IJobParallelFor
 		{
-			// Input
+			// Input threshold
 			public float threshold;
 
-			// Output
+			// Output biome map
 			[NativeDisableContainerSafetyRestriction]
 			[WriteOnly] public NativeSlice<double> map;
 
