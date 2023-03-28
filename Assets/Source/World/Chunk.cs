@@ -53,10 +53,9 @@ namespace Utopia.World
 			Mesh mesh = new Mesh()
 			{
 				vertices = vertices.Reinterpret<Vector3>().ToArray(),
-				triangles = indices.ToArray(),
-
-				indexFormat = IndexFormat.UInt16
+				indexFormat = IndexFormat.UInt32
 			};
+			mesh.triangles = indices.ToArray();
 			// TODO convert to MeshDataArray
 			mesh.SetUVs(0, uvs);
 			mesh.SetUVs(1, biomeMap);

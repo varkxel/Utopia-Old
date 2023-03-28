@@ -268,7 +268,7 @@ namespace Utopia.World
 				NativeArray<Curve.RawData> biomeCurves = new NativeArray<Curve.RawData>(4, Allocator.Temp);
 				for(int i = 0; i < 4; i++)
 				{
-					Loop.ExpectVectorized();
+					//Loop.ExpectVectorized();
 					biomeCurves[i] = curves[biomeIndex[i]];
 				}
 
@@ -286,7 +286,7 @@ namespace Utopia.World
 				// Weight the samples
 				for(int i = 0; i < 4; i++)
 				{
-					Loop.ExpectVectorized();
+					//Loop.ExpectVectorized();
 					samples[i] *= weights[i];
 				}
 

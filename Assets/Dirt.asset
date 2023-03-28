@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f12e24c262134c1c84648661492e8eb9, type: 3}
+  m_Name: Dirt
+  m_EditorClassIdentifier: 
+  _heightmapModifier:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 20
+      inSlope: 21.73372
+      outSlope: 21.73372
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.22083333
+    - serializedVersion: 3
+      time: 1
+      value: 75
+      inSlope: 56.70482
+      outSlope: 56.70482
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.116666675
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  biomeTexture: {fileID: 2800000, guid: cd9cd3898c476c3078ca4b81bf601dba, type: 3}
+  noise: {fileID: 11400000, guid: 68608c24b52d84975a81781742217594, type: 2}
+  threshold: 0.5
+  operation: 0

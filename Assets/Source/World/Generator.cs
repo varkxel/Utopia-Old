@@ -46,7 +46,7 @@ namespace Utopia.World
 		// World
 		[Header("World")]
 		public int worldSize = 4096;
-		[Range(16, 128)]
+		//[Range(16, 128)]
 		public int chunkSize = 128;
 
 		[SerializeField] internal Material chunkMaterial;
